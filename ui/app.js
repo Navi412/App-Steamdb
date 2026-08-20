@@ -84,5 +84,26 @@ document.getElementById('games-list').addEventListener('submit', async (event) =
   }
 });
 
+const syncButton = document.getElementById('sync-button');
+const SYNC_LABEL = syncButton.textContent;
+
+syncButton.addEventListener('click', async () => {
+  syncButton.disabled = true;
+  syncButton.textContent = 'Sincronizando...';
+  try {
+    const result = await submitJson('/api/sync', 'POST', {});
+    await refreshGames();
+    syncButton.textContent = `Hecho: ${result.gamesSynced} juegos`;
+  } catch (err) {
+    alert(err.message);
+    syncButton.textContent = SYNC_LABEL;
+  } finally {
+    setTimeout(() => {
+      syncButton.textContent = SYNC_LABEL;
+      syncButton.disabled = false;
+    }, 3000);
+  }
+});
+
 checkHealth();
 refreshGames();

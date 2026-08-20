@@ -5,6 +5,7 @@ const { openDatabase } = require('../db/connection');
 const { migrate } = require('../db/migrate');
 const { createRouter } = require('./router');
 const { registerGameRoutes } = require('./routes/games');
+const { registerSyncRoutes } = require('./routes/sync');
 
 const PORT = process.env.PORT || 3000;
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -39,12 +40,13 @@ function serveStatic(req, res) {
   });
 }
 
-function createServer() {
+function createServer({ fetchImpl } = {}) {
   const db = openDatabase();
   migrate(db);
 
   const router = createRouter();
   registerGameRoutes(router, db);
+  registerSyncRoutes(router, db, { fetchImpl });
 
   return http.createServer(async (req, res) => {
     if (req.url === '/health' && req.method === 'GET') {
