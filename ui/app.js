@@ -40,7 +40,7 @@ function renderGames(games) {
       ${game.achievementsTotal > 0 ? `<span class="achievements">🏆 ${game.achievementsUnlocked}/${game.achievementsTotal}</span>` : ''}
       ${game.missingSince ? '<span class="badge">ya no está en Steam</span>' : ''}
       <form class="log-session" data-game-id="${game.id}">
-        <input type="number" name="minutes" min="1" placeholder="min" required>
+        <input type="number" name="hours" min="0.25" step="0.25" placeholder="horas" required>
         <button type="submit">Registrar</button>
       </form>
     `;
@@ -85,9 +85,8 @@ document.getElementById('games-list').addEventListener('submit', async (event) =
   event.preventDefault();
   const form = event.target;
   try {
-    await submitJson(`/api/games/${form.dataset.gameId}/sessions`, 'POST', {
-      minutes: Number(form.minutes.value),
-    });
+    const minutes = Math.round(Number(form.hours.value) * 60);
+    await submitJson(`/api/games/${form.dataset.gameId}/sessions`, 'POST', { minutes });
     form.reset();
     await refreshGames();
   } catch (err) {
