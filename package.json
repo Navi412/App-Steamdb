@@ -1,0 +1,15 @@
+{
+  "name": "steamdb",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Registro personal de videojuegos y horas jugadas, con sincronización desde Steam y entrada manual.",
+  "type": "commonjs",
+  "main": "api/server.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node api/server.js",
+    "test": "node --test tests/"
+  }
+}

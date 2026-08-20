@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>SteamDB</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; padding: 0 1rem; }
+  #status { font-weight: 600; }
+  .ok { color: #1a7f37; }
+  .error { color: #c00; }
+</style>
+</head>
+<body>
+  <h1>SteamDB</h1>
+  <p>Estado del servidor: <span id="status">comprobando...</span></p>
+
+  <script>
+    fetch('/health')
+      .then((r) => r.json())
+      .then((data) => {
+        const el = document.getElementById('status');
+        el.textContent = `${data.status} (db: ${data.db})`;
+        el.className = data.status === 'ok' && data.db === 'ok' ? 'ok' : 'error';
+      })
+      .catch(() => {
+        const el = document.getElementById('status');
+        el.textContent = 'sin respuesta';
+        el.className = 'error';
+      });
+  </script>
+</body>
+</html>
