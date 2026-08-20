@@ -3,6 +3,8 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { openDatabase } = require('../db/connection');
 const { migrate } = require('../db/migrate');
+const { createRouter } = require('./router');
+const { registerGameRoutes } = require('./routes/games');
 
 const PORT = process.env.PORT || 3000;
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -39,7 +41,10 @@ function createServer() {
   const db = openDatabase();
   migrate(db);
 
-  return http.createServer((req, res) => {
+  const router = createRouter();
+  registerGameRoutes(router, db);
+
+  return http.createServer(async (req, res) => {
     if (req.url === '/health' && req.method === 'GET') {
       const dbOk = db.prepare('SELECT 1 AS ok').get().ok === 1;
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -47,7 +52,8 @@ function createServer() {
       return;
     }
 
-    serveStatic(req, res);
+    const handled = await router.handle(req, res);
+    if (!handled) serveStatic(req, res);
   });
 }
 
