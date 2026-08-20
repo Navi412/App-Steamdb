@@ -21,6 +21,12 @@ function registerGameRoutes(router, db) {
     }
   });
 
+  router.get('/api/games/:id', (req, res, params) => {
+    const game = gamesDb.getGameById(db, Number(params.id));
+    if (!game) return sendJson(res, 404, { error: 'juego no encontrado' });
+    sendJson(res, 200, game);
+  });
+
   router.patch('/api/games/:id', async (req, res, params) => {
     try {
       const game = gamesDb.getGameById(db, Number(params.id));

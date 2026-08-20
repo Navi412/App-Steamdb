@@ -66,6 +66,20 @@ test('registrar sesiones manuales suma minutos al total del juego', async () => 
   });
 });
 
+test('GET /api/games/:id devuelve el juego, y 404 si no existe', async () => {
+  await withServer(async (base) => {
+    const created = await (await postJson(base, '/api/games', { title: 'Hades', platform: 'Switch' })).json();
+
+    const res = await fetch(`${base}/api/games/${created.id}`);
+    assert.equal(res.status, 200);
+    const game = await res.json();
+    assert.equal(game.title, 'Hades');
+
+    const missing = await fetch(`${base}/api/games/999`);
+    assert.equal(missing.status, 404);
+  });
+});
+
 test('POST de sesión en juego inexistente da 404', async () => {
   await withServer(async (base) => {
     const res = await postJson(base, '/api/games/999/sessions', { minutes: 10 });

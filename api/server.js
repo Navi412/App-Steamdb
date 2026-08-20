@@ -16,10 +16,12 @@ const CONTENT_TYPES = {
 };
 
 function serveStatic(req, res) {
-  const urlPath = req.url === '/' ? '/index.html' : req.url;
+  const { pathname } = new URL(req.url, 'http://localhost');
+  const urlPath = pathname === '/' ? '/index.html' : pathname;
   const filePath = path.join(UI_DIR, urlPath);
+  const relative = path.relative(UI_DIR, filePath);
 
-  if (!filePath.startsWith(UI_DIR)) {
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
     res.writeHead(403);
     res.end('Forbidden');
     return;

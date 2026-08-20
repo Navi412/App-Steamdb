@@ -1,13 +1,3 @@
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[ch]));
-}
-
-function formatHours(minutes) {
-  return (minutes / 60).toFixed(1) + ' h';
-}
-
 async function checkHealth() {
   const el = document.getElementById('status');
   try {
@@ -34,7 +24,7 @@ function renderGames(games) {
     const li = document.createElement('li');
     li.className = 'game' + (game.archived ? ' archived' : '');
     li.innerHTML = `
-      <span class="title">${escapeHtml(game.title)}</span>
+      <span class="title"><a href="/game.html?id=${game.id}">${escapeHtml(game.title)}</a></span>
       <span class="platform">${escapeHtml(game.platform)}</span>
       <span class="total">${formatHours(game.totalMinutes)}</span>
       ${game.achievementsTotal > 0 ? `<span class="achievements">🏆 ${game.achievementsUnlocked}/${game.achievementsTotal}</span>` : ''}

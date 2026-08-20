@@ -3,26 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>SteamDB</title>
-<style>
-  body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
-  h1 { margin-bottom: 0; }
-  #status { font-size: 0.85rem; color: #666; }
-  #status.ok { color: #1a7f37; }
-  #status.error { color: #c00; }
-  section { margin-top: 2rem; }
-  form.inline { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-  input { padding: 0.35rem 0.5rem; }
-  ul { list-style: none; padding: 0; }
-  li.game { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid #eee; flex-wrap: wrap; }
-  li.game.archived { opacity: 0.5; }
-  li.game .title { font-weight: 600; flex: 1 0 auto; }
-  li.game .platform { font-size: 0.8rem; color: #666; border: 1px solid #ccc; border-radius: 999px; padding: 0.1rem 0.5rem; }
-  li.game .total { font-variant-numeric: tabular-nums; }
-  li.game .achievements { font-size: 0.8rem; color: #8a6d00; font-variant-numeric: tabular-nums; }
-  li.game .badge { font-size: 0.75rem; color: #c00; }
-  form.log-session { display: flex; gap: 0.3rem; margin-left: auto; }
-  form.log-session input { width: 5rem; }
-</style>
+<link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <h1>SteamDB</h1>
@@ -42,6 +23,7 @@
     <ul id="games-list"></ul>
   </section>
 
+  <script src="/common.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
