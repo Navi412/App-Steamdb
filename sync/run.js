@@ -5,10 +5,13 @@ const { normalizeOwnedGames } = require('./normalize');
 const gamesDb = require('../db/games');
 const snapshotsDb = require('../db/snapshots');
 const syncRunsDb = require('../db/sync-runs');
+const sessionsDb = require('../db/sessions');
+const anomaliesDb = require('../db/sync-anomalies');
+const { deriveSession } = require('../core/derive-session');
 
-// Ingesta pura: da de alta juegos nuevos y guarda una instantánea por
-// juego. La derivación de sesiones a partir de esas instantáneas es
-// responsabilidad de otra rebanada (docs/DESIGN.md).
+// Da de alta juegos nuevos, guarda una instantánea por juego, y deriva
+// (core/derive-session) la sesión y/o anomalía correspondiente comparando
+// contra la instantánea anterior de ese mismo juego.
 async function runSync({ db, apiKey, steamId, fetchImpl } = {}) {
   const runId = syncRunsDb.startRun(db);
 
@@ -23,11 +26,22 @@ async function runSync({ db, apiKey, steamId, fetchImpl } = {}) {
         title: entry.title,
         iconUrl: entry.iconUrl,
       });
-      snapshotsDb.insertSnapshot(db, game.id, {
+
+      const prevSnapshot = snapshotsDb.getLatestSnapshot(db, game.id);
+      const newSnapshot = snapshotsDb.insertSnapshot(db, game.id, {
         capturedAt,
         playtimeForeverMinutes: entry.playtimeForeverMinutes,
         playtime2WeeksMinutes: entry.playtime2WeeksMinutes,
       });
+
+      const { session, anomaly } = deriveSession(prevSnapshot, newSnapshot);
+
+      if (session) {
+        sessionsDb.insertSession(db, game.id, { ...session, sourceSnapshotId: newSnapshot.id });
+      }
+      if (anomaly) {
+        anomaliesDb.insertAnomaly(db, game.id, anomaly);
+      }
     }
 
     syncRunsDb.finishRun(db, runId, { gamesSynced: normalized.length });

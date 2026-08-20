@@ -63,6 +63,63 @@ test('sincronizar dos veces actualiza el juego existente en vez de duplicarlo', 
   assert.equal(snapshots.length, 2);
 });
 
+test('la primera sincronización de un juego crea una sesión de backlog', async () => {
+  const db = tempDb();
+  const fetchImpl = fakeFetch({
+    response: { games: [{ appid: 620, name: 'Portal 2', playtime_forever: 300 }] },
+  });
+
+  await runSync({ db, apiKey: 'K', steamId: 'S', fetchImpl });
+
+  const sessions = db.prepare('SELECT * FROM play_sessions').all();
+  assert.equal(sessions.length, 1);
+  assert.equal(sessions[0].minutes, 300);
+  assert.equal(sessions[0].started_at, null);
+  assert.equal(sessions[0].precision, 'derived');
+  assert.equal(sessions[0].origin, 'steam_sync');
+  assert.ok(sessions[0].source_snapshot_id);
+});
+
+test('una segunda sincronización con más minutos deriva una sesión del intervalo', async () => {
+  const db = tempDb();
+  let playtime = 300;
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ response: { games: [{ appid: 620, name: 'Portal 2', playtime_forever: playtime }] } }),
+  });
+
+  await runSync({ db, apiKey: 'K', steamId: 'S', fetchImpl });
+  playtime = 360;
+  await runSync({ db, apiKey: 'K', steamId: 'S', fetchImpl });
+
+  const sessions = db.prepare('SELECT * FROM play_sessions ORDER BY id').all();
+  assert.equal(sessions.length, 2);
+  assert.equal(sessions[1].minutes, 60);
+  assert.ok(sessions[1].started_at);
+});
+
+test('una bajada de minutos entre sincronizaciones registra una anomalía y ninguna sesión nueva', async () => {
+  const db = tempDb();
+  let playtime = 300;
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ response: { games: [{ appid: 620, name: 'Portal 2', playtime_forever: playtime }] } }),
+  });
+
+  await runSync({ db, apiKey: 'K', steamId: 'S', fetchImpl });
+  playtime = 50;
+  await runSync({ db, apiKey: 'K', steamId: 'S', fetchImpl });
+
+  const sessions = db.prepare('SELECT * FROM play_sessions').all();
+  assert.equal(sessions.length, 1); // solo la sesión de backlog de la primera sincronización
+
+  const anomalies = db.prepare('SELECT * FROM sync_anomalies').all();
+  assert.equal(anomalies.length, 1);
+  assert.equal(anomalies[0].kind, 'playtime_decreased');
+});
+
 test('un fallo de red se registra en sync_runs y se propaga', async () => {
   const db = tempDb();
   const fetchImpl = async () => {

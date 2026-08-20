@@ -17,10 +17,20 @@ function insertSession(db, gameId, draft) {
   const now = new Date().toISOString();
   const info = db
     .prepare(
-      `INSERT INTO play_sessions (game_id, minutes, started_at, ended_at, precision, origin, note, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO play_sessions (game_id, minutes, started_at, ended_at, precision, origin, source_snapshot_id, note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(gameId, draft.minutes, draft.startedAt, draft.endedAt, draft.precision, draft.origin, draft.note, now);
+    .run(
+      gameId,
+      draft.minutes,
+      draft.startedAt,
+      draft.endedAt,
+      draft.precision,
+      draft.origin,
+      draft.sourceSnapshotId ?? null,
+      draft.note,
+      now
+    );
 
   return rowToSession(db.prepare('SELECT * FROM play_sessions WHERE id = ?').get(info.lastInsertRowid));
 }
