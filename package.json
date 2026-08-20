@@ -9,8 +9,9 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "start": "node api/server.js",
+    "start": "node --env-file-if-exists=.env api/server.js",
     "migrate": "node db/migrate.js",
+    "sync": "node --env-file-if-exists=.env sync/run.js",
     "test": "node --test \"tests/**/*.test.js\""
   }
 }

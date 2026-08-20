@@ -32,6 +32,24 @@ function getGameById(db, id) {
   return row ? rowToGame(row) : null;
 }
 
+function getGameBySteamAppId(db, steamAppId) {
+  const row = db.prepare(`${SELECT_WITH_TOTAL} WHERE g.steam_appid = ? GROUP BY g.id`).get(steamAppId);
+  return row ? rowToGame(row) : null;
+}
+
+// Da de alta un juego de Steam la primera vez que aparece en la biblioteca,
+// o actualiza título/icono si ya existía (Steam los cambia de vez en cuando).
+// No toca missing_since: la detección de ausencias vive en el flujo de sync.
+function upsertSteamGame(db, { steamAppId, title, iconUrl }) {
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO games (source, steam_appid, title, platform, icon_url, created_at)
+     VALUES ('steam', ?, ?, 'Steam', ?, ?)
+     ON CONFLICT(steam_appid) DO UPDATE SET title = excluded.title, icon_url = excluded.icon_url`
+  ).run(steamAppId, title, iconUrl, now);
+  return getGameBySteamAppId(db, steamAppId);
+}
+
 function listGames(db) {
   const rows = db.prepare(`${SELECT_WITH_TOTAL} GROUP BY g.id ORDER BY g.title COLLATE NOCASE`).all();
   return rows.map(rowToGame);
@@ -55,4 +73,4 @@ function updateGame(db, id, changes) {
   return getGameById(db, id);
 }
 
-module.exports = { insertManualGame, getGameById, listGames, updateGame };
+module.exports = { insertManualGame, getGameById, getGameBySteamAppId, upsertSteamGame, listGames, updateGame };
