@@ -2,6 +2,7 @@ const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs');
 const { openDatabase } = require('../db/connection');
+const { migrate } = require('../db/migrate');
 
 const PORT = process.env.PORT || 3000;
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -36,6 +37,7 @@ function serveStatic(req, res) {
 
 function createServer() {
   const db = openDatabase();
+  migrate(db);
 
   return http.createServer((req, res) => {
     if (req.url === '/health' && req.method === 'GET') {
