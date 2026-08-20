@@ -90,6 +90,8 @@ input::placeholder { color: var(--text-muted); }
 
 ul { list-style: none; padding: 0; margin: 0; }
 
+.search-box { width: 100%; margin-bottom: 1rem; }
+
 /* --- botones pixel art blancos --- */
 button {
   font-family: var(--pixel-font);

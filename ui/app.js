@@ -11,14 +11,27 @@ async function checkHealth() {
   }
 }
 
+let allGames = [];
+
 async function fetchGames() {
   const res = await fetch('/api/games');
   return res.json();
 }
 
+function applyFilter() {
+  const term = document.getElementById('search-input').value.trim().toLowerCase();
+  const filtered = term ? allGames.filter((g) => g.title.toLowerCase().includes(term)) : allGames;
+  renderGames(filtered);
+}
+
 function renderGames(games) {
   const list = document.getElementById('games-list');
   list.innerHTML = '';
+
+  if (games.length === 0) {
+    list.innerHTML = '<li class="empty">Ningún juego coincide con la búsqueda.</li>';
+    return;
+  }
 
   for (const game of games) {
     const li = document.createElement('li');
@@ -39,7 +52,8 @@ function renderGames(games) {
 }
 
 async function refreshGames() {
-  renderGames(await fetchGames());
+  allGames = await fetchGames();
+  applyFilter();
 }
 
 async function submitJson(url, method, body) {
@@ -104,6 +118,8 @@ syncButton.addEventListener('click', async () => {
     }, 3000);
   }
 });
+
+document.getElementById('search-input').addEventListener('input', applyFilter);
 
 checkHealth();
 refreshGames();
