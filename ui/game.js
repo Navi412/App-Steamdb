@@ -7,6 +7,7 @@ function gameIdFromUrl() {
 function renderHeader(game) {
   document.title = `${game.title} — SteamDB`;
   document.getElementById('game-header').innerHTML = `
+    ${coverHtml(game, { size: 'lg' })}
     <h1>${escapeHtml(game.title)}</h1>
     <span class="platform">${escapeHtml(game.platform)}</span>
     ${game.missingSince ? '<span class="badge">ya no está en Steam</span>' : ''}

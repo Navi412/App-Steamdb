@@ -37,6 +37,7 @@ function renderGames(games) {
     const li = document.createElement('li');
     li.className = 'game' + (game.archived ? ' archived' : '');
     li.innerHTML = `
+      ${coverHtml(game)}
       <span class="title"><a href="/game.html?id=${game.id}">${escapeHtml(game.title)}</a></span>
       <span class="platform">${escapeHtml(game.platform)}</span>
       <span class="total">${formatHours(game.totalMinutes)}</span>
