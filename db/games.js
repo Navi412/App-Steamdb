@@ -10,13 +10,20 @@ function rowToGame(row) {
     missingSince: row.missing_since,
     archived: Boolean(row.archived),
     totalMinutes: row.total_minutes ?? 0,
+    achievementsTotal: row.achievements_total ?? 0,
+    achievementsUnlocked: row.achievements_unlocked ?? 0,
   };
 }
 
-const SELECT_WITH_TOTAL = `
-  SELECT g.*, COALESCE(SUM(s.minutes), 0) AS total_minutes
+// Subqueries en vez de LEFT JOIN: play_sessions y achievements son dos
+// relaciones uno-a-muchos independientes, y unirlas en la misma query
+// multiplicaría filas (cada sesión x cada logro) y falsearía ambos totales.
+const SELECT_WITH_STATS = `
+  SELECT g.*,
+    (SELECT COALESCE(SUM(minutes), 0) FROM play_sessions s WHERE s.game_id = g.id) AS total_minutes,
+    (SELECT COUNT(*) FROM achievements a WHERE a.game_id = g.id) AS achievements_total,
+    (SELECT COUNT(*) FROM achievements a WHERE a.game_id = g.id AND a.achieved = 1) AS achievements_unlocked
   FROM games g
-  LEFT JOIN play_sessions s ON s.game_id = g.id
 `;
 
 function insertManualGame(db, { title, platform }) {
@@ -28,12 +35,12 @@ function insertManualGame(db, { title, platform }) {
 }
 
 function getGameById(db, id) {
-  const row = db.prepare(`${SELECT_WITH_TOTAL} WHERE g.id = ? GROUP BY g.id`).get(id);
+  const row = db.prepare(`${SELECT_WITH_STATS} WHERE g.id = ?`).get(id);
   return row ? rowToGame(row) : null;
 }
 
 function getGameBySteamAppId(db, steamAppId) {
-  const row = db.prepare(`${SELECT_WITH_TOTAL} WHERE g.steam_appid = ? GROUP BY g.id`).get(steamAppId);
+  const row = db.prepare(`${SELECT_WITH_STATS} WHERE g.steam_appid = ?`).get(steamAppId);
   return row ? rowToGame(row) : null;
 }
 
@@ -51,7 +58,7 @@ function upsertSteamGame(db, { steamAppId, title, iconUrl }) {
 }
 
 function listGames(db) {
-  const rows = db.prepare(`${SELECT_WITH_TOTAL} GROUP BY g.id ORDER BY g.title COLLATE NOCASE`).all();
+  const rows = db.prepare(`${SELECT_WITH_STATS} ORDER BY g.title COLLATE NOCASE`).all();
   return rows.map(rowToGame);
 }
 

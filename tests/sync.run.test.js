@@ -120,6 +120,75 @@ test('una bajada de minutos entre sincronizaciones registra una anomalía y ning
   assert.equal(anomalies[0].kind, 'playtime_decreased');
 });
 
+function fakeFetchWithAchievements(ownedGamesPayload, achievementsByAppId) {
+  return async (url) => {
+    if (url.searchParams.has('appid')) {
+      const appId = Number(url.searchParams.get('appid'));
+      const payload = achievementsByAppId[appId] ?? { playerstats: { success: false, error: 'sin logros' } };
+      return { ok: true, status: 200, json: async () => payload };
+    }
+    return { ok: true, status: 200, json: async () => ownedGamesPayload };
+  };
+}
+
+test('runSync guarda los logros de cada juego', async () => {
+  const db = tempDb();
+  const fetchImpl = fakeFetchWithAchievements(
+    { response: { games: [{ appid: 620, name: 'Portal 2', playtime_forever: 100 }] } },
+    {
+      620: {
+        playerstats: {
+          success: true,
+          achievements: [
+            { apiname: 'ACH_A', achieved: 1, unlocktime: 1700000000, name: 'A' },
+            { apiname: 'ACH_B', achieved: 0, unlocktime: 0, name: 'B' },
+          ],
+        },
+      },
+    }
+  );
+
+  await runSync({ db, apiKey: 'K', steamId: 'S', fetchImpl });
+
+  const achievements = db.prepare('SELECT * FROM achievements ORDER BY api_name').all();
+  assert.equal(achievements.length, 2);
+  assert.equal(achievements[0].achieved, 1);
+  assert.equal(achievements[1].achieved, 0);
+
+  const game = db.prepare("SELECT * FROM games WHERE steam_appid = 620").get();
+  const gamesDb = require('../db/games');
+  const withStats = gamesDb.getGameById(db, game.id);
+  assert.equal(withStats.achievementsTotal, 2);
+  assert.equal(withStats.achievementsUnlocked, 1);
+});
+
+test('un juego sin logros no rompe la sincronización del resto', async () => {
+  const db = tempDb();
+  const fetchImpl = fakeFetchWithAchievements(
+    {
+      response: {
+        games: [
+          { appid: 620, name: 'Portal 2', playtime_forever: 100 },
+          { appid: 999, name: 'Juego sin logros', playtime_forever: 5 },
+        ],
+      },
+    },
+    {
+      620: { playerstats: { success: true, achievements: [{ apiname: 'ACH_A', achieved: 1, unlocktime: 1700000000 }] } },
+      // 999 no está en el mapa: responde "sin logros" por defecto
+    }
+  );
+
+  const result = await runSync({ db, apiKey: 'K', steamId: 'S', fetchImpl });
+  assert.equal(result.gamesSynced, 2);
+
+  const achievements = db.prepare('SELECT * FROM achievements').all();
+  assert.equal(achievements.length, 1);
+
+  const run = db.prepare('SELECT * FROM sync_runs').get();
+  assert.equal(run.status, 'ok');
+});
+
 test('un fallo de red se registra en sync_runs y se propaga', async () => {
   const db = tempDb();
   const fetchImpl = async () => {

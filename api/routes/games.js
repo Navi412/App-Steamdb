@@ -2,6 +2,7 @@ const { validateManualGame, validateGameUpdate } = require('../../core/game');
 const { buildManualSession } = require('../../core/session');
 const gamesDb = require('../../db/games');
 const sessionsDb = require('../../db/sessions');
+const achievementsDb = require('../../db/achievements');
 const { readJsonBody, sendJson } = require('../http-helpers');
 
 function registerGameRoutes(router, db) {
@@ -50,6 +51,10 @@ function registerGameRoutes(router, db) {
     } catch (err) {
       sendJson(res, 400, { error: err.message });
     }
+  });
+
+  router.get('/api/games/:id/achievements', (req, res, params) => {
+    sendJson(res, 200, achievementsDb.listAchievementsForGame(db, Number(params.id)));
   });
 }
 

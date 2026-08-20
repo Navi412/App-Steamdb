@@ -1,12 +1,13 @@
 const { openDatabase } = require('../db/connection');
 const { migrate } = require('../db/migrate');
-const { fetchOwnedGames } = require('./steam-client');
-const { normalizeOwnedGames } = require('./normalize');
+const { fetchOwnedGames, fetchPlayerAchievements } = require('./steam-client');
+const { normalizeOwnedGames, normalizePlayerAchievements } = require('./normalize');
 const gamesDb = require('../db/games');
 const snapshotsDb = require('../db/snapshots');
 const syncRunsDb = require('../db/sync-runs');
 const sessionsDb = require('../db/sessions');
 const anomaliesDb = require('../db/sync-anomalies');
+const achievementsDb = require('../db/achievements');
 const { deriveSession } = require('../core/derive-session');
 
 // Da de alta juegos nuevos, guarda una instantánea por juego, y deriva
@@ -41,6 +42,24 @@ async function runSync({ db, apiKey, steamId, fetchImpl } = {}) {
       }
       if (anomaly) {
         anomaliesDb.insertAnomaly(db, game.id, anomaly);
+      }
+
+      try {
+        const rawAchievements = await fetchPlayerAchievements({
+          apiKey,
+          steamId,
+          appId: entry.steamAppId,
+          fetchImpl,
+        });
+        const { achievements } = normalizePlayerAchievements(rawAchievements);
+        for (const achievement of achievements) {
+          achievementsDb.upsertAchievement(db, game.id, achievement);
+        }
+      } catch (err) {
+        // Un fallo al pedir logros de un juego concreto (rate limit, juego
+        // sin estadísticas todavía, etc.) no debe abortar el resto de la
+        // sincronización: las horas jugadas ya quedaron a salvo arriba.
+        console.warn(`no se pudieron sincronizar logros de "${entry.title}": ${err.message}`);
       }
     }
 

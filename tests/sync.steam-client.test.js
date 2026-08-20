@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { fetchOwnedGames, OWNED_GAMES_URL } = require('../sync/steam-client');
+const { fetchOwnedGames, fetchPlayerAchievements, OWNED_GAMES_URL, PLAYER_ACHIEVEMENTS_URL } = require('../sync/steam-client');
 
 function fakeFetch(response, { ok = true, status = 200 } = {}) {
   const calls = [];
@@ -41,4 +41,29 @@ test('lanza si la API responde con error HTTP', async () => {
 test('lanza si falta apiKey o steamId', async () => {
   await assert.rejects(() => fetchOwnedGames({ steamId: 'S', fetchImpl: fakeFetch({}) }));
   await assert.rejects(() => fetchOwnedGames({ apiKey: 'K', fetchImpl: fakeFetch({}) }));
+});
+
+test('fetchPlayerAchievements construye la URL con appid', async () => {
+  const fetchImpl = fakeFetch({ playerstats: { success: true, achievements: [] } });
+  await fetchPlayerAchievements({ apiKey: 'K', steamId: 'S', appId: 620, fetchImpl });
+
+  const url = fetchImpl.calls[0];
+  assert.equal(url.origin + url.pathname, PLAYER_ACHIEVEMENTS_URL);
+  assert.equal(url.searchParams.get('appid'), '620');
+  assert.equal(url.searchParams.get('l'), 'spanish');
+});
+
+test('fetchPlayerAchievements devuelve el cuerpo aunque el status sea de error (juego sin logros)', async () => {
+  const fetchImpl = fakeFetch({ playerstats: { success: false, error: 'Requested app has no stats' } }, { ok: false, status: 400 });
+  const result = await fetchPlayerAchievements({ apiKey: 'K', steamId: 'S', appId: 620, fetchImpl });
+  assert.equal(result.playerstats.success, false);
+});
+
+test('fetchPlayerAchievements lanza si el cuerpo no es interpretable', async () => {
+  const fetchImpl = async () => ({ ok: false, status: 500, json: async () => { throw new Error('no es JSON'); } });
+  await assert.rejects(() => fetchPlayerAchievements({ apiKey: 'K', steamId: 'S', appId: 620, fetchImpl }), /500/);
+});
+
+test('fetchPlayerAchievements lanza si falta appId', async () => {
+  await assert.rejects(() => fetchPlayerAchievements({ apiKey: 'K', steamId: 'S', fetchImpl: fakeFetch({}) }));
 });

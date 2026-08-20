@@ -37,6 +37,7 @@ function renderGames(games) {
       <span class="title">${escapeHtml(game.title)}</span>
       <span class="platform">${escapeHtml(game.platform)}</span>
       <span class="total">${formatHours(game.totalMinutes)}</span>
+      ${game.achievementsTotal > 0 ? `<span class="achievements">🏆 ${game.achievementsUnlocked}/${game.achievementsTotal}</span>` : ''}
       ${game.missingSince ? '<span class="badge">ya no está en Steam</span>' : ''}
       <form class="log-session" data-game-id="${game.id}">
         <input type="number" name="minutes" min="1" placeholder="min" required>

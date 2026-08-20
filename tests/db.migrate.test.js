@@ -16,6 +16,7 @@ const EXPECTED_TABLES = [
   'play_sessions',
   'sync_anomalies',
   'sync_runs',
+  'achievements',
   'schema_migrations',
 ];
 
