@@ -17,8 +17,15 @@ para el resto de plataformas.
   siempre está disponible — `node:sqlite` da lo mismo sin ese coste).
 - **Frontend**: HTML/CSS/JS sin framework. Sin bundler salvo que el proyecto
   lo justifique más adelante.
+- **Escritorio**: Electron (`/electron`) es solo una ventana nativa que
+  arranca el mismo servidor HTTP de `/api` y le apunta a `http://localhost`.
+  No duplica lógica: `/core`, `/db`, `/api` y `/ui` no saben que existe.
+  `npm start` (navegador) y `npm run electron` (app de escritorio) son dos
+  formas de arrancar el mismo backend.
 - **Sin dependencias innecesarias.** Antes de añadir un paquete, preguntarse
-  si Node ya lo resuelve o si son 20 líneas de código propio.
+  si Node ya lo resuelve o si son 20 líneas de código propio. Electron es la
+  excepción consciente: es pesado (~200MB), pero es justo lo que pide "app
+  de escritorio" sin reescribir nada del resto del proyecto.
 
 ## Idea central de la arquitectura
 
@@ -51,11 +58,13 @@ desaparece de la biblioteca, contador que baja, primera sincronización, etc.).
 /sync   cliente de la Web API de Steam. Sabe hablar HTTP con Steam y
         traducir sus respuestas a los tipos de datos que /core entiende.
         No sabe nada de SQLite.
-/db     acceso a SQLite (better-sqlite3): migraciones, queries, mapeo entre
+/db     acceso a SQLite (node:sqlite): migraciones, queries, mapeo entre
         filas de la base de datos y los tipos de /core.
 /api    servidor HTTP: rutas, controladores. Orquesta /db, /sync y /core,
         pero no contiene lógica de negocio propia.
 /ui     frontend estático servido por /api.
+/electron ventana nativa que arranca /api y carga su URL. No contiene
+        lógica propia; ver "Escritorio" arriba.
 /tests  tests, organizados en espejo de las carpetas anteriores.
 ```
 
