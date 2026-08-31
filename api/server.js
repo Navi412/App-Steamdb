@@ -45,7 +45,7 @@ function createServer({ fetchImpl } = {}) {
   migrate(db);
 
   const router = createRouter();
-  registerGameRoutes(router, db);
+  registerGameRoutes(router, db, { fetchImpl });
   registerSyncRoutes(router, db, { fetchImpl });
 
   return http.createServer(async (req, res) => {

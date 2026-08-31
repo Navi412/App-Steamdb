@@ -12,6 +12,10 @@ function rowToGame(row) {
     totalMinutes: row.total_minutes ?? 0,
     achievementsTotal: row.achievements_total ?? 0,
     achievementsUnlocked: row.achievements_unlocked ?? 0,
+    igdbId: row.igdb_id,
+    igdbMainMinutes: row.igdb_main_minutes,
+    igdbCompletionistMinutes: row.igdb_completionist_minutes,
+    igdbUpdatedAt: row.igdb_updated_at,
   };
 }
 
@@ -80,4 +84,23 @@ function updateGame(db, id, changes) {
   return getGameById(db, id);
 }
 
-module.exports = { insertManualGame, getGameById, getGameBySteamAppId, upsertSteamGame, listGames, updateGame };
+// Guarda el resultado de una búsqueda en IGDB (automática o corregida a
+// mano). igdbId se pasa siempre explícitamente, ya que una corrección
+// manual debe conservar el que ya había en vez de perderlo.
+function setIgdbTimes(db, id, { igdbId, mainMinutes, completionistMinutes }) {
+  const now = new Date().toISOString();
+  db.prepare(
+    `UPDATE games SET igdb_id = ?, igdb_main_minutes = ?, igdb_completionist_minutes = ?, igdb_updated_at = ? WHERE id = ?`
+  ).run(igdbId ?? null, mainMinutes ?? null, completionistMinutes ?? null, now, id);
+  return getGameById(db, id);
+}
+
+module.exports = {
+  insertManualGame,
+  getGameById,
+  getGameBySteamAppId,
+  upsertSteamGame,
+  listGames,
+  updateGame,
+  setIgdbTimes,
+};

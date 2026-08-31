@@ -30,4 +30,21 @@ function validateGameUpdate(changes = {}) {
   return result;
 }
 
-module.exports = { validateManualGame, validateGameUpdate };
+function validatePositiveMinutesOrNull(value, field) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`${field} debe ser un número ≥ 0`);
+  return Math.round(n);
+}
+
+// A diferencia de validateGameUpdate, esto siempre devuelve ambos campos
+// (nunca "sin cambios"): el formulario de IGDB en la UI envía los dos a la
+// vez, y dejar uno en blanco significa "borrar ese tiempo", no "no tocarlo".
+function validateIgdbUpdate({ mainMinutes, completionistMinutes } = {}) {
+  return {
+    mainMinutes: validatePositiveMinutesOrNull(mainMinutes, 'mainMinutes'),
+    completionistMinutes: validatePositiveMinutesOrNull(completionistMinutes, 'completionistMinutes'),
+  };
+}
+
+module.exports = { validateManualGame, validateGameUpdate, validateIgdbUpdate };
