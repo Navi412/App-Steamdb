@@ -16,7 +16,7 @@ test('normaliza una respuesta típica de GetOwnedGames', () => {
   const result = normalizeOwnedGames(raw);
 
   assert.deepEqual(result[0], {
-    steamAppId: 620,
+    externalId: '620',
     title: 'Portal 2',
     iconUrl: 'https://media.steampowered.com/steamcommunity/public/images/apps/620/abc123.jpg',
     playtimeForeverMinutes: 754,
@@ -24,7 +24,7 @@ test('normaliza una respuesta típica de GetOwnedGames', () => {
   });
 
   assert.deepEqual(result[1], {
-    steamAppId: 400,
+    externalId: '400',
     title: 'Portal',
     iconUrl: null,
     playtimeForeverMinutes: 0,

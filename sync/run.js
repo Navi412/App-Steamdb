@@ -22,14 +22,17 @@ async function runSync({ db, apiKey, steamId, fetchImpl } = {}) {
     const capturedAt = new Date().toISOString();
 
     for (const entry of normalized) {
-      const game = gamesDb.upsertSteamGame(db, {
-        steamAppId: entry.steamAppId,
+      const game = gamesDb.upsertExternalGame(db, {
+        source: 'steam',
+        externalId: entry.externalId,
         title: entry.title,
         iconUrl: entry.iconUrl,
+        platform: 'Steam',
       });
 
       const prevSnapshot = snapshotsDb.getLatestSnapshot(db, game.id);
       const newSnapshot = snapshotsDb.insertSnapshot(db, game.id, {
+        source: 'steam',
         capturedAt,
         playtimeForeverMinutes: entry.playtimeForeverMinutes,
         playtime2WeeksMinutes: entry.playtime2WeeksMinutes,
@@ -48,7 +51,7 @@ async function runSync({ db, apiKey, steamId, fetchImpl } = {}) {
         const rawAchievements = await fetchPlayerAchievements({
           apiKey,
           steamId,
-          appId: entry.steamAppId,
+          appId: entry.externalId,
           fetchImpl,
         });
         const { achievements } = normalizePlayerAchievements(rawAchievements);

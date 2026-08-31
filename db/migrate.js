@@ -25,22 +25,34 @@ function pendingMigrations(db) {
 
 function migrate(db) {
   const pending = pendingMigrations(db);
+  if (pending.length === 0) return pending;
 
-  for (const file of pending) {
-    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
-    db.exec('BEGIN');
-    try {
-      db.exec(sql);
-      db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)').run(
-        file,
-        new Date().toISOString()
-      );
-      db.exec('COMMIT');
-      console.log(`aplicada: ${file}`);
-    } catch (err) {
-      db.exec('ROLLBACK');
-      throw new Error(`fallo al aplicar la migración ${file}: ${err.message}`);
+  // Algunas migraciones reconstruyen tablas con hijos que las referencian
+  // (p. ej. 005 rehace `games`). SQLite solo deja hacerlo con las FK
+  // desactivadas, y `PRAGMA foreign_keys` es un no-op dentro de una
+  // transacción, así que se conmuta aquí fuera, alrededor de todo el lote.
+  const fkOn = db.prepare('PRAGMA foreign_keys').get().foreign_keys === 1;
+  if (fkOn) db.exec('PRAGMA foreign_keys = OFF');
+
+  try {
+    for (const file of pending) {
+      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+      db.exec('BEGIN');
+      try {
+        db.exec(sql);
+        db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)').run(
+          file,
+          new Date().toISOString()
+        );
+        db.exec('COMMIT');
+        console.log(`aplicada: ${file}`);
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw new Error(`fallo al aplicar la migración ${file}: ${err.message}`);
+      }
     }
+  } finally {
+    if (fkOn) db.exec('PRAGMA foreign_keys = ON');
   }
 
   return pending;

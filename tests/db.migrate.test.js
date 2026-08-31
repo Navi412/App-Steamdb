@@ -12,7 +12,8 @@ function tempDbPath() {
 
 const EXPECTED_TABLES = [
   'games',
-  'steam_snapshots',
+  'game_external_ids',
+  'playtime_snapshots',
   'play_sessions',
   'sync_anomalies',
   'sync_runs',
@@ -43,26 +44,53 @@ test('migrate es idempotente: correr dos veces no falla ni duplica', () => {
   assert.deepEqual(secondRun, []);
 });
 
-test('games rechaza un juego steam sin steam_appid', () => {
+test('games rechaza un source desconocido', () => {
   const db = openDatabase(tempDbPath());
   migrate(db);
 
   assert.throws(() => {
     db.prepare(
-      `INSERT INTO games (source, title, platform, created_at) VALUES ('steam', 'Test', 'Steam', ?)`
+      `INSERT INTO games (source, title, platform, created_at) VALUES ('psn', 'Test', 'PS5', ?)`
     ).run(new Date().toISOString());
   });
 });
 
-test('games acepta un juego manual sin steam_appid', () => {
+test('games acepta las plataformas previstas y game_external_ids las liga a un id externo', () => {
   const db = openDatabase(tempDbPath());
   migrate(db);
 
-  db.prepare(
-    `INSERT INTO games (source, title, platform, created_at) VALUES ('manual', 'Test', 'PS5', ?)`
-  ).run(new Date().toISOString());
+  const now = new Date().toISOString();
+  for (const source of ['steam', 'manual', 'epic', 'gog', 'xbox']) {
+    db.prepare(
+      `INSERT INTO games (source, title, platform, created_at) VALUES (?, ?, 'X', ?)`
+    ).run(source, `Juego ${source}`, now);
+  }
 
-  const row = db.prepare('SELECT * FROM games').get();
-  assert.equal(row.title, 'Test');
-  assert.equal(row.steam_appid, null);
+  const gameId = db.prepare("SELECT id FROM games WHERE source = 'xbox'").get().id;
+  db.prepare(
+    `INSERT INTO game_external_ids (game_id, source, external_id) VALUES (?, 'xbox', '9NBLGGH4R315')`
+  ).run(gameId);
+
+  const row = db
+    .prepare('SELECT external_id FROM game_external_ids WHERE game_id = ? AND source = ?')
+    .get(gameId, 'xbox');
+  assert.equal(row.external_id, '9NBLGGH4R315');
+});
+
+test('game_external_ids no deja repetir el mismo id externo en una plataforma', () => {
+  const db = openDatabase(tempDbPath());
+  migrate(db);
+
+  const now = new Date().toISOString();
+  const a = db
+    .prepare(`INSERT INTO games (source, title, platform, created_at) VALUES ('steam', 'A', 'Steam', ?)`)
+    .run(now).lastInsertRowid;
+  const b = db
+    .prepare(`INSERT INTO games (source, title, platform, created_at) VALUES ('steam', 'B', 'Steam', ?)`)
+    .run(now).lastInsertRowid;
+
+  db.prepare(`INSERT INTO game_external_ids (game_id, source, external_id) VALUES (?, 'steam', '620')`).run(a);
+  assert.throws(() => {
+    db.prepare(`INSERT INTO game_external_ids (game_id, source, external_id) VALUES (?, 'steam', '620')`).run(b);
+  });
 });

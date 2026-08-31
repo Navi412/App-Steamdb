@@ -17,7 +17,7 @@ function tempDb() {
 
 test('upsertAchievement inserta y luego actualiza el mismo logro', () => {
   const db = tempDb();
-  const game = gamesDb.upsertSteamGame(db, { steamAppId: 620, title: 'Portal 2', iconUrl: null });
+  const game = gamesDb.upsertExternalGame(db, { source: 'steam', externalId: '620', title: 'Portal 2', platform: 'Steam' });
 
   upsertAchievement(db, game.id, { apiName: 'ACH_WIN', name: 'Ganador', description: 'Gana', achieved: false, unlockedAt: null });
   let achievements = listAchievementsForGame(db, game.id);
@@ -39,7 +39,7 @@ test('upsertAchievement inserta y luego actualiza el mismo logro', () => {
 
 test('listGames refleja el conteo de logros de cada juego', () => {
   const db = tempDb();
-  const game = gamesDb.upsertSteamGame(db, { steamAppId: 620, title: 'Portal 2', iconUrl: null });
+  const game = gamesDb.upsertExternalGame(db, { source: 'steam', externalId: '620', title: 'Portal 2', platform: 'Steam' });
 
   upsertAchievement(db, game.id, { apiName: 'A', achieved: true, unlockedAt: '2026-08-19T10:00:00.000Z' });
   upsertAchievement(db, game.id, { apiName: 'B', achieved: false, unlockedAt: null });

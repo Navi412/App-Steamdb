@@ -32,15 +32,22 @@ test('runSync da de alta juegos steam y guarda una instantánea por juego', asyn
   const result = await runSync({ db, apiKey: 'K', steamId: 'S', fetchImpl });
   assert.equal(result.gamesSynced, 2);
 
-  const games = db.prepare("SELECT * FROM games WHERE source = 'steam' ORDER BY steam_appid").all();
+  const games = db
+    .prepare(
+      `SELECT g.*, e.external_id FROM games g
+       JOIN game_external_ids e ON e.game_id = g.id AND e.source = 'steam'
+       WHERE g.source = 'steam' ORDER BY CAST(e.external_id AS INTEGER)`
+    )
+    .all();
   assert.equal(games.length, 2);
-  assert.equal(games[0].steam_appid, 400);
-  assert.equal(games[1].steam_appid, 620);
+  assert.equal(games[0].external_id, '400');
+  assert.equal(games[1].external_id, '620');
   assert.equal(games[1].title, 'Portal 2');
   assert.equal(games[1].platform, 'Steam');
 
-  const snapshots = db.prepare('SELECT * FROM steam_snapshots').all();
+  const snapshots = db.prepare('SELECT * FROM playtime_snapshots').all();
   assert.equal(snapshots.length, 2);
+  assert.equal(snapshots[0].source, 'steam');
 
   const run = db.prepare('SELECT * FROM sync_runs').get();
   assert.equal(run.status, 'ok');
@@ -58,8 +65,10 @@ test('sincronizar dos veces actualiza el juego existente en vez de duplicarlo', 
 
   const games = db.prepare("SELECT * FROM games WHERE source = 'steam'").all();
   assert.equal(games.length, 1);
+  const externalIds = db.prepare('SELECT * FROM game_external_ids').all();
+  assert.equal(externalIds.length, 1);
 
-  const snapshots = db.prepare('SELECT * FROM steam_snapshots').all();
+  const snapshots = db.prepare('SELECT * FROM playtime_snapshots').all();
   assert.equal(snapshots.length, 2);
 });
 
@@ -155,8 +164,8 @@ test('runSync guarda los logros de cada juego', async () => {
   assert.equal(achievements[0].achieved, 1);
   assert.equal(achievements[1].achieved, 0);
 
-  const game = db.prepare("SELECT * FROM games WHERE steam_appid = 620").get();
   const gamesDb = require('../db/games');
+  const game = gamesDb.getGameByExternalId(db, 'steam', '620');
   const withStats = gamesDb.getGameById(db, game.id);
   assert.equal(withStats.achievementsTotal, 2);
   assert.equal(withStats.achievementsUnlocked, 1);

@@ -4,37 +4,58 @@
 
 ### `games`
 
-La tabla unificada. Un juego de Steam y un juego manual son filas de la
-misma tabla; solo se distinguen por `source` y `steam_appid`.
+La tabla unificada. Un juego de Steam, uno de Xbox y uno manual son filas
+de la misma tabla; se distinguen por `source`. El id que tiene el juego en
+su tienda (appid de Steam, product id de GOG, título de Xbox...) no vive
+aquí, sino en `game_external_ids`, para que sumar plataformas no sea sumar
+columnas.
 
 | columna        | tipo    | notas                                                        |
 |----------------|---------|---------------------------------------------------------------|
 | id             | INTEGER | PK                                                             |
-| source         | TEXT    | `'steam'` \| `'manual'`                                       |
-| steam_appid    | INTEGER | UNIQUE, NULL salvo `source='steam'`                            |
+| source         | TEXT    | `'steam'` \| `'manual'` \| `'epic'` \| `'gog'` \| `'xbox'`    |
 | title          | TEXT    | nombre a mostrar                                               |
 | platform       | TEXT    | `'Steam'`, `'PS5'`, `'Switch'`... siempre relleno              |
 | icon_url       | TEXT    | NULL permitido                                                 |
 | created_at     | TEXT    | ISO8601, cuándo se dio de alta en la app                       |
-| missing_since  | TEXT    | NULL si está presente; fecha desde la que desapareció de Steam |
+| missing_since  | TEXT    | NULL si está presente; fecha desde la que desapareció de la biblioteca |
 | archived       | INTEGER | 0/1, ocultar un juego manual sin borrar su historial            |
 
-`missing_since` es exclusivo de juegos Steam (lo pone `/sync`). `archived` es
+Además, columnas `igdb_*` con el tiempo estimado para completarlo (ver
+`003_hltb.sql` / `004_igdb.sql`): es un dato 1:1 con el juego, no un
+histórico, así que vive como columnas y no como tabla aparte.
+
+`missing_since` lo ponen los flujos de sync (hoy solo Steam). `archived` es
 una acción manual del usuario, aplicable a cualquier juego.
 
-### `steam_snapshots`
+### `game_external_ids`
 
-Una fila por cada juego, en cada sincronización. Es el dato crudo tal cual
-lo da Steam — nadie fuera de `/sync` y `/db` debería leer esta tabla
-directamente para calcular estadísticas.
+El id de un juego en cada tienda externa. Una fila por `(game_id, source)`.
+Sustituye a la vieja columna `games.steam_appid`.
+
+| columna     | tipo    | notas                                          |
+|-------------|---------|------------------------------------------------|
+| game_id     | INTEGER | FK → games.id                                  |
+| source      | TEXT    | `'steam'` \| `'epic'` \| `'gog'` \| `'xbox'`   |
+| external_id | TEXT    | el id tal cual en esa tienda (texto siempre)   |
+
+`PRIMARY KEY (game_id, source)`, `UNIQUE (source, external_id)`.
+
+### `playtime_snapshots`
+
+Una fila por cada juego, en cada sincronización. Es el contador acumulado
+crudo tal cual lo da la plataforma — nadie fuera de los runners de sync y
+de `/db` debería leer esta tabla directamente para calcular estadísticas.
+Antes se llamaba `steam_snapshots`.
 
 | columna                   | tipo    | notas                                    |
 |----------------------------|---------|-------------------------------------------|
 | id                         | INTEGER | PK                                         |
 | game_id                    | INTEGER | FK → games.id                              |
+| source                     | TEXT    | de qué plataforma viene el contador        |
 | captured_at                | TEXT    | ISO8601, momento de la sincronización      |
-| playtime_forever_minutes   | INTEGER | contador acumulado que da Steam            |
-| playtime_2weeks_minutes    | INTEGER | NULL, dato auxiliar de Steam (no fiable como única fuente) |
+| playtime_forever_minutes   | INTEGER | contador acumulado que da la plataforma    |
+| playtime_2weeks_minutes    | INTEGER | NULL, extra que solo trae Steam            |
 
 `UNIQUE(game_id, captured_at)`.
 
@@ -53,7 +74,7 @@ forma. Esto es lo que hace posible que `/core` no sepa nada del origen.
 | ended_at             | TEXT    | NULL si se desconoce                                             |
 | precision            | TEXT    | `'exact'` \| `'approximate'` \| `'derived'`                      |
 | origin               | TEXT    | `'steam_sync'` \| `'manual'`                                     |
-| source_snapshot_id   | INTEGER | FK → steam_snapshots.id, NULL si origin='manual'                 |
+| source_snapshot_id   | INTEGER | FK → playtime_snapshots.id, NULL si origin='manual'              |
 | note                 | TEXT    | NULL, libre                                                       |
 | created_at           | TEXT    | auditoría, cuándo se insertó la fila                              |
 
@@ -109,12 +130,12 @@ sincronización" en la UI y detectar fallos repetidos.
 | games_synced  | INTEGER |                                   |
 | error_message | TEXT    | NULL                              |
 
-## 2. Unificar Steam y manual sin contaminar el resto de la app
+## 2. Unificar las plataformas y lo manual sin contaminar el resto de la app
 
-La regla es: **`source` y `steam_appid` solo se leen en `/sync` y en la
-parte de `/api` que expone el botón "sincronizar" o la insignia "vinculado
-a Steam".** Todo lo demás —`/core`, las estadísticas, la UI de lista y
-detalle de juego— trabaja con dos formas:
+La regla es: **`source` y `game_external_ids` solo se leen en los runners de
+sync y en la parte de `/api` que expone el botón "sincronizar" o la insignia
+de "vinculado a una tienda".** Todo lo demás —`/core`, las estadísticas, la
+UI de lista y detalle de juego— trabaja con dos formas:
 
 - `Game`: `{ id, title, platform, iconUrl, missingSince, archived }`
 - `Session`: `{ id, gameId, minutes, startedAt, endedAt, precision }`
@@ -179,9 +200,10 @@ hasta ese momento, y cabe en un commit razonable.
    lógica de negocio todavía — solo demostrar que el servidor arranca y
    sirve la UI.
 2. **Esquema de base de datos y migraciones.** Script de migración que crea
-   `games`, `steam_snapshots`, `play_sessions`, `sync_anomalies`,
-   `sync_runs`. Sin API todavía; se valida con un script/test que corre las
-   migraciones sobre una base temporal.
+   `games`, `playtime_snapshots` (entonces `steam_snapshots`),
+   `play_sessions`, `sync_anomalies`, `sync_runs`. Sin API todavía; se
+   valida con un script/test que corre las migraciones sobre una base
+   temporal.
 3. **CRUD de juegos manuales, de punta a punta.** API
    (`POST/GET/PATCH /games`, `POST /games/:id/sessions`) + formulario HTML
    mínimo para dar de alta un juego manual y registrar una sesión + tests
@@ -194,7 +216,7 @@ hasta ese momento, y cabe en un commit razonable.
    solo el traductor.
 5. **Ingesta de instantáneas.** Comando `npm run sync` que llama al cliente
    de Steam, da de alta juegos nuevos en `games` (`source='steam'`) y
-   guarda una fila en `steam_snapshots` por juego. Sin derivar sesiones
+   guarda una fila en `playtime_snapshots` por juego. Sin derivar sesiones
    todavía.
 6. **Derivación de sesiones desde instantáneas.** `deriveSession` en
    `/core`, con tests exhaustivos de los casos del punto 3 (primera
@@ -215,3 +237,18 @@ hasta ese momento, y cabe en un commit razonable.
     configurable) que llama al flujo de sync sin intervención manual,
     registra cada corrida en `sync_runs`, y muestra "última sincronización"
     / errores en la UI.
+
+### Rebanadas posteriores (fuera del plan original)
+
+- **Tiempo para completar cada juego (IGDB).** Columnas `igdb_*` en `games`,
+  cliente en `/igdb`, comando `npm run igdb` para rellenarlas en lote y
+  botón por juego para corregir. IGDB en vez de HowLongToBeat porque el
+  buscador de HLTB tiene barrera anti-bot.
+- **Modelo multiplataforma.** `game_external_ids` en vez de
+  `games.steam_appid`; `steam_snapshots` → `playtime_snapshots` con
+  columna `source`. Deja el terreno listo para Epic, GOG y Xbox sin tocar
+  `/core` ni la UI: cada plataforma es un runner nuevo que normaliza a la
+  misma forma de instantánea.
+- **Xbox / Game Pass.** Cliente contra la API de Xbox Live (title history +
+  minutos jugados), OAuth de cuenta Microsoft, runner propio que reusa
+  `deriveSession`.

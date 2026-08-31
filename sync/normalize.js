@@ -2,7 +2,7 @@ function normalizeOwnedGames(rawResponse) {
   const games = rawResponse?.response?.games || [];
 
   return games.map((game) => ({
-    steamAppId: game.appid,
+    externalId: String(game.appid),
     title: game.name,
     iconUrl: game.img_icon_url
       ? `https://media.steampowered.com/steamcommunity/public/images/apps/${game.appid}/${game.img_icon_url}.jpg`

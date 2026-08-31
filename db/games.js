@@ -1,3 +1,5 @@
+const { setExternalId, findGameIdByExternalId } = require('./external-ids');
+
 function rowToGame(row) {
   return {
     id: row.id,
@@ -22,8 +24,12 @@ function rowToGame(row) {
 // Subqueries en vez de LEFT JOIN: play_sessions y achievements son dos
 // relaciones uno-a-muchos independientes, y unirlas en la misma query
 // multiplicaría filas (cada sesión x cada logro) y falsearía ambos totales.
+// steam_appid ya no es una columna de games (vive en game_external_ids),
+// pero se sigue exponiendo con ese nombre porque la UI lo usa para armar
+// la URL de la carátula.
 const SELECT_WITH_STATS = `
   SELECT g.*,
+    (SELECT external_id FROM game_external_ids e WHERE e.game_id = g.id AND e.source = 'steam') AS steam_appid,
     (SELECT COALESCE(SUM(minutes), 0) FROM play_sessions s WHERE s.game_id = g.id) AS total_minutes,
     (SELECT COUNT(*) FROM achievements a WHERE a.game_id = g.id) AS achievements_total,
     (SELECT COUNT(*) FROM achievements a WHERE a.game_id = g.id AND a.achieved = 1) AS achievements_unlocked
@@ -43,22 +49,31 @@ function getGameById(db, id) {
   return row ? rowToGame(row) : null;
 }
 
-function getGameBySteamAppId(db, steamAppId) {
-  const row = db.prepare(`${SELECT_WITH_STATS} WHERE g.steam_appid = ?`).get(steamAppId);
-  return row ? rowToGame(row) : null;
+function getGameByExternalId(db, source, externalId) {
+  const gameId = findGameIdByExternalId(db, source, externalId);
+  return gameId ? getGameById(db, gameId) : null;
 }
 
-// Da de alta un juego de Steam la primera vez que aparece en la biblioteca,
-// o actualiza título/icono si ya existía (Steam los cambia de vez en cuando).
-// No toca missing_since: la detección de ausencias vive en el flujo de sync.
-function upsertSteamGame(db, { steamAppId, title, iconUrl }) {
+// Da de alta un juego de una plataforma (Steam, Xbox...) la primera vez que
+// aparece en la biblioteca, o actualiza título/icono si ya existía (las
+// tiendas los cambian de vez en cuando). No toca missing_since: la
+// detección de ausencias vive en cada flujo de sync.
+function upsertExternalGame(db, { source, externalId, title, iconUrl = null, platform }) {
   const now = new Date().toISOString();
-  db.prepare(
-    `INSERT INTO games (source, steam_appid, title, platform, icon_url, created_at)
-     VALUES ('steam', ?, ?, 'Steam', ?, ?)
-     ON CONFLICT(steam_appid) DO UPDATE SET title = excluded.title, icon_url = excluded.icon_url`
-  ).run(steamAppId, title, iconUrl, now);
-  return getGameBySteamAppId(db, steamAppId);
+  const existingId = findGameIdByExternalId(db, source, externalId);
+
+  if (existingId) {
+    db.prepare('UPDATE games SET title = ?, icon_url = ? WHERE id = ?').run(title, iconUrl, existingId);
+    return getGameById(db, existingId);
+  }
+
+  const info = db
+    .prepare(
+      `INSERT INTO games (source, title, platform, icon_url, created_at) VALUES (?, ?, ?, ?, ?)`
+    )
+    .run(source, title, platform, iconUrl, now);
+  setExternalId(db, info.lastInsertRowid, source, externalId);
+  return getGameById(db, info.lastInsertRowid);
 }
 
 function listGames(db) {
@@ -98,8 +113,8 @@ function setIgdbTimes(db, id, { igdbId, mainMinutes, completionistMinutes }) {
 module.exports = {
   insertManualGame,
   getGameById,
-  getGameBySteamAppId,
-  upsertSteamGame,
+  getGameByExternalId,
+  upsertExternalGame,
   listGames,
   updateGame,
   setIgdbTimes,
