@@ -13,12 +13,6 @@ function formatDate(iso) {
   return new Date(iso).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-function steamCoverUrl(game, variant = 'capsule_184x69.jpg') {
-  return game.steamAppId
-    ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.steamAppId}/${variant}`
-    : null;
-}
-
 // Las imágenes de la Store de Microsoft (juegos de Xbox) llegan como el
 // póster a tamaño completo por http. Se fuerza https y se pide una versión
 // reducida — sin esto son ~800 KB cada una y muchas ni cargan.
@@ -30,18 +24,31 @@ function normalizeIconUrl(url) {
   return url;
 }
 
-// Carátula: para Steam la cápsula bonita; si no (Xbox, o un Steam cuya
-// cápsula no existe) el icon_url que haya guardado la sync. Los juegos
-// manuales no tienen ninguno: hueco de reserva.
-function coverUrl(game, { lg = false } = {}) {
-  return steamCoverUrl(game, lg ? 'header.jpg' : 'capsule_184x69.jpg') || normalizeIconUrl(game.iconUrl);
-}
-
+// Carátula vertical (formato caja de juego), para que Steam y Xbox se vean
+// igual y sin recortes raros:
+//  - Steam: library_600x900 (arte de biblioteca, 2:3). Si no existe, se
+//    reintenta con header.jpg antes de rendirse.
+//  - resto (Xbox): el icon_url que guardó la sync.
+//  - manuales: sin imagen, hueco de reserva.
 function coverHtml(game, { size = '' } = {}) {
-  const url = coverUrl(game, { lg: size === 'lg' });
   const sizeClass = size ? ` cover-${size}` : '';
-  if (!url) return `<span class="cover${sizeClass} cover-fallback"></span>`;
-  return `<span class="cover${sizeClass}"><img src="${url}" alt="" loading="lazy" onerror="this.parentElement.classList.add('cover-fallback')"></span>`;
+
+  let primary = null;
+  let fallback = null;
+  if (game.steamAppId) {
+    const base = `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.steamAppId}`;
+    primary = `${base}/library_600x900.jpg`;
+    fallback = `${base}/header.jpg`;
+  } else {
+    primary = normalizeIconUrl(game.iconUrl);
+  }
+
+  if (!primary) return `<span class="cover${sizeClass} cover-fallback"></span>`;
+
+  const onError = fallback
+    ? `if(this.dataset.f){this.parentElement.classList.add('cover-fallback')}else{this.dataset.f=1;this.src='${fallback}'}`
+    : `this.parentElement.classList.add('cover-fallback')`;
+  return `<span class="cover${sizeClass}"><img src="${primary}" alt="" loading="lazy" onerror="${onError}"></span>`;
 }
 
 // El marcador de horas totales vive en ambas páginas (lista y detalle). La

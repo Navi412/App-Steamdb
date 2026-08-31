@@ -145,10 +145,12 @@ li.game .title a { color: var(--text); }
 li.game .title a:hover { color: var(--accent); }
 
 /* --- carátulas --- */
+/* Formato caja de juego (~3:4): el arte de biblioteca de Steam y el póster
+   de Xbox son verticales, así entran casi sin recorte. */
 .cover {
   flex: 0 0 auto;
-  width: 4.2rem;
-  height: 1.55rem;
+  width: 2.7rem;
+  height: 3.6rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -157,13 +159,10 @@ li.game .title a:hover { color: var(--accent); }
   border-radius: 2px;
   overflow: hidden;
 }
-/* object-position sesgado hacia arriba: las carátulas de Xbox son
-   verticales y entran recortadas en la tira; así se ve la zona del título
-   en vez del centro. En las cápsulas de Steam (ya apaisadas) no cambia nada. */
-.cover img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; display: block; }
+.cover img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
 .cover.cover-fallback { background: var(--panel); }
 .cover.cover-fallback img { display: none; }
-.cover.cover-lg { width: 8.5rem; height: 3.95rem; border-radius: 3px; }
+.cover.cover-lg { width: 7.5rem; height: 10rem; border-radius: 3px; }
 
 .platform, li.game .achievements, li.game .igdb, .precision, .badge {
   font-family: var(--pixel-font);
