@@ -13,16 +13,32 @@ function formatDate(iso) {
   return new Date(iso).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-// Los juegos manuales no tienen steamAppId, así que no hay carátula posible
-// para ellos: la lista muestra el hueco de reserva en su lugar.
 function steamCoverUrl(game, variant = 'capsule_184x69.jpg') {
   return game.steamAppId
     ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.steamAppId}/${variant}`
     : null;
 }
 
+// Las imágenes de la Store de Microsoft (juegos de Xbox) llegan como el
+// póster a tamaño completo por http. Se fuerza https y se pide una versión
+// reducida — sin esto son ~800 KB cada una y muchas ni cargan.
+function normalizeIconUrl(url) {
+  if (!url) return null;
+  if (url.includes('store-images.s-microsoft.com')) {
+    return `${url.replace(/^http:/, 'https:')}?q=90&w=320`;
+  }
+  return url;
+}
+
+// Carátula: para Steam la cápsula bonita; si no (Xbox, o un Steam cuya
+// cápsula no existe) el icon_url que haya guardado la sync. Los juegos
+// manuales no tienen ninguno: hueco de reserva.
+function coverUrl(game, { lg = false } = {}) {
+  return steamCoverUrl(game, lg ? 'header.jpg' : 'capsule_184x69.jpg') || normalizeIconUrl(game.iconUrl);
+}
+
 function coverHtml(game, { size = '' } = {}) {
-  const url = steamCoverUrl(game, size === 'lg' ? 'header.jpg' : 'capsule_184x69.jpg');
+  const url = coverUrl(game, { lg: size === 'lg' });
   const sizeClass = size ? ` cover-${size}` : '';
   if (!url) return `<span class="cover${sizeClass} cover-fallback"></span>`;
   return `<span class="cover${sizeClass}"><img src="${url}" alt="" loading="lazy" onerror="this.parentElement.classList.add('cover-fallback')"></span>`;

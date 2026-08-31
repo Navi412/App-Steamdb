@@ -157,7 +157,10 @@ li.game .title a:hover { color: var(--accent); }
   border-radius: 2px;
   overflow: hidden;
 }
-.cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* object-position sesgado hacia arriba: las carátulas de Xbox son
+   verticales y entran recortadas en la tira; así se ve la zona del título
+   en vez del centro. En las cápsulas de Steam (ya apaisadas) no cambia nada. */
+.cover img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; display: block; }
 .cover.cover-fallback { background: var(--panel); }
 .cover.cover-fallback img { display: none; }
 .cover.cover-lg { width: 8.5rem; height: 3.95rem; border-radius: 3px; }
