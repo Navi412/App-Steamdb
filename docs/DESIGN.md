@@ -73,7 +73,7 @@ forma. Esto es lo que hace posible que `/core` no sepa nada del origen.
 | started_at           | TEXT    | NULL si se desconoce                                             |
 | ended_at             | TEXT    | NULL si se desconoce                                             |
 | precision            | TEXT    | `'exact'` \| `'approximate'` \| `'derived'`                      |
-| origin               | TEXT    | `'steam_sync'` \| `'xbox_sync'` \| `'manual'`                    |
+| origin               | TEXT    | `'steam_sync'` \| `'xbox_sync'` \| `'epic_sync'` \| `'manual'`   |
 | source_snapshot_id   | INTEGER | FK → playtime_snapshots.id, NULL si origin='manual'              |
 | note                 | TEXT    | NULL, libre                                                       |
 | created_at           | TEXT    | auditoría, cuándo se insertó la fila                              |
@@ -257,3 +257,11 @@ hasta ese momento, y cabe en un commit razonable.
   ~150 peticiones/hora, así que el runner solo consulta los juegos con
   novedades (sin instantánea o jugados desde la última sync) y, si se queda
   sin presupuesto, para y se retoma en la siguiente pasada.
+- **Epic Games.** `epic/client.js` habla con la API privada del launcher
+  (credenciales públicas del propio launcher, las de Legendary/Heroic). El
+  usuario aporta una vez un código de autorización de su cuenta
+  (`npm run epic:login <código>`), que se canjea por un refresh token
+  guardado en `data/epic_auth.json` (fuera de git, rueda en cada sync).
+  `npm run sync:epic` cruza el listado de horas jugadas con la biblioteca
+  para resolver título e imagen, y deriva sesiones con `origin='epic_sync'`.
+  Solo cuenta lo lanzado desde el launcher de Epic.
