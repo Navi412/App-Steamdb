@@ -9,11 +9,26 @@
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <div id="total-hours-badge" class="total-badge"></div>
+
   <a class="back-link" href="/">← Mis juegos</a>
 
   <section class="header-card">
     <div id="game-header" class="game-header"></div>
     <div id="game-stats" class="stats"></div>
+
+    <div class="igdb-block">
+      <h2>Tiempo para completarlo</h2>
+      <div id="igdb-stats" class="stats"></div>
+      <div class="section-header">
+        <button id="igdb-search-button" type="button">Buscar en IGDB</button>
+      </div>
+      <form id="igdb-form" class="inline">
+        <input name="mainHours" type="number" min="0" step="0.5" placeholder="Principal (h)">
+        <input name="completionistHours" type="number" min="0" step="0.5" placeholder="Completista (h)">
+        <button type="submit">Guardar</button>
+      </form>
+    </div>
   </section>
 
   <section>

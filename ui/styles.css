@@ -60,6 +60,23 @@ a:hover { text-decoration: underline; }
 
 .back-link { display: inline-block; margin-bottom: 1.2rem; font-size: 1.15rem; }
 
+/* --- marcador de horas totales --- */
+.total-badge {
+  position: fixed;
+  top: 1rem;
+  right: 1.25rem;
+  font-family: var(--pixel-font);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--gold);
+  background: var(--panel-alt);
+  border: 2px solid var(--gold);
+  border-radius: 2px;
+  padding: 0.6rem 0.8rem;
+  box-shadow: 4px 4px 0 #000;
+  z-index: 10;
+}
+
 #status { font-size: 1.1rem; color: var(--text-muted); }
 #status.ok { color: #7be08a; }
 #status.error { color: var(--danger); }
@@ -145,7 +162,7 @@ li.game .title a:hover { color: var(--accent); }
 .cover.cover-fallback img { display: none; }
 .cover.cover-lg { width: 8.5rem; height: 3.95rem; border-radius: 3px; }
 
-.platform, li.game .achievements, .precision, .badge {
+.platform, li.game .achievements, li.game .igdb, .precision, .badge {
   font-family: var(--pixel-font);
   font-size: 0.7rem;
   letter-spacing: 0.02em;
@@ -157,6 +174,7 @@ li.game .title a:hover { color: var(--accent); }
 
 .platform { color: var(--text-muted); }
 li.game .achievements, .unlocked-at { color: var(--gold); border-color: var(--gold); }
+li.game .igdb { color: var(--accent); }
 .badge { color: var(--danger); border-color: var(--danger); }
 
 li.game .total { font-variant-numeric: tabular-nums; color: var(--accent); font-size: 1.2rem; }
@@ -177,6 +195,17 @@ form.log-session input { width: 6.5rem; }
   color: #fff;
   margin-bottom: 0.4rem;
 }
+
+.igdb-block {
+  margin-top: 1.6rem;
+  padding-top: 1.4rem;
+  border-top: 2px solid var(--border);
+}
+.igdb-block h2 { font-size: 0.85rem; margin-bottom: 0.9rem; }
+.igdb-block .stats { margin-top: 0; margin-bottom: 1rem; }
+.igdb-block .stats:empty { display: none; }
+.igdb-block form.inline { margin-top: 0.9rem; }
+.igdb-block form.inline input { width: 9rem; }
 
 li.session, li.achievement {
   display: flex;

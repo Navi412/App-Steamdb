@@ -21,6 +21,18 @@ function renderHeader(game) {
   `;
 }
 
+function renderIgdb(game) {
+  const stats = document.getElementById('igdb-stats');
+  stats.innerHTML = `
+    ${game.igdbMainMinutes ? `<div><strong>${formatHours(game.igdbMainMinutes)}</strong>historia principal</div>` : ''}
+    ${game.igdbCompletionistMinutes ? `<div><strong>${formatHours(game.igdbCompletionistMinutes)}</strong>completista</div>` : ''}
+  `;
+
+  const form = document.getElementById('igdb-form');
+  form.mainHours.value = game.igdbMainMinutes ? (game.igdbMainMinutes / 60).toFixed(2) : '';
+  form.completionistHours.value = game.igdbCompletionistMinutes ? (game.igdbCompletionistMinutes / 60).toFixed(2) : '';
+}
+
 function sessionSortKey(session) {
   return session.endedAt || session.startedAt || session.createdAt;
 }
@@ -101,9 +113,45 @@ async function loadGame() {
     return;
   }
 
-  renderHeader(await gameRes.json());
+  const game = await gameRes.json();
+  renderHeader(game);
   renderSessions(sessions);
   renderAchievements(achievements);
+  renderIgdb(game);
 }
 
+const igdbSearchButton = document.getElementById('igdb-search-button');
+const IGDB_SEARCH_LABEL = igdbSearchButton.textContent;
+
+igdbSearchButton.addEventListener('click', async () => {
+  const id = gameIdFromUrl();
+  igdbSearchButton.disabled = true;
+  igdbSearchButton.textContent = 'Buscando...';
+  try {
+    const game = await submitJson(`/api/games/${id}/igdb/search`, 'POST', {});
+    renderIgdb(game);
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    igdbSearchButton.disabled = false;
+    igdbSearchButton.textContent = IGDB_SEARCH_LABEL;
+  }
+});
+
+document.getElementById('igdb-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const id = gameIdFromUrl();
+  const form = event.target;
+  try {
+    const game = await submitJson(`/api/games/${id}/igdb`, 'PATCH', {
+      mainMinutes: form.mainHours.value ? Math.round(Number(form.mainHours.value) * 60) : null,
+      completionistMinutes: form.completionistHours.value ? Math.round(Number(form.completionistHours.value) * 60) : null,
+    });
+    renderIgdb(game);
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
 loadGame();
+renderTotalHoursBadge();

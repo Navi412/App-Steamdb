@@ -42,6 +42,7 @@ function renderGames(games) {
       <span class="platform">${escapeHtml(game.platform)}</span>
       <span class="total">${formatHours(game.totalMinutes)}</span>
       ${game.achievementsTotal > 0 ? `<span class="achievements">🏆 ${game.achievementsUnlocked}/${game.achievementsTotal}</span>` : ''}
+      ${game.igdbMainMinutes ? `<span class="igdb">⏱ ${formatHours(game.igdbMainMinutes)}</span>` : ''}
       ${game.missingSince ? '<span class="badge">ya no está en Steam</span>' : ''}
       <form class="log-session" data-game-id="${game.id}">
         <input type="number" name="hours" min="0.25" step="0.25" placeholder="horas" required>
@@ -55,19 +56,7 @@ function renderGames(games) {
 async function refreshGames() {
   allGames = await fetchGames();
   applyFilter();
-}
-
-async function submitJson(url, method, body) {
-  const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'error desconocido' }));
-    throw new Error(err.error);
-  }
-  return res.json();
+  renderTotalHoursFromGames(allGames);
 }
 
 document.getElementById('add-game-form').addEventListener('submit', async (event) => {
