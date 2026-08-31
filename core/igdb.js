@@ -23,4 +23,19 @@ function pickBestMatch(candidates, title) {
   return exact || candidates[0];
 }
 
-module.exports = { normalizeTitle, pickBestMatch };
+// Como pickBestMatch pero devuelve toda la lista reordenada, no solo el
+// primero: los matches exactos de titulo normalizado van delante (en su
+// orden original), el resto detras. IGDB tiene entradas duplicadas con el
+// mismo titulo y solo algunas traen "Game Time To Beat", asi que el
+// proceso en lote (igdb/run.js) necesita poder probar la 2a y la 3a antes
+// de rendirse.
+function rankedMatches(candidates, title) {
+  if (!candidates || candidates.length === 0) return [];
+
+  const target = normalizeTitle(title);
+  const exact = candidates.filter((c) => normalizeTitle(c.title) === target);
+  const rest = candidates.filter((c) => normalizeTitle(c.title) !== target);
+  return [...exact, ...rest];
+}
+
+module.exports = { normalizeTitle, pickBestMatch, rankedMatches };
