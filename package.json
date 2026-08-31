@@ -12,6 +12,7 @@
     "start": "node --env-file-if-exists=.env api/server.js",
     "migrate": "node db/migrate.js",
     "sync": "node --env-file-if-exists=.env sync/run.js",
+    "sync:xbox": "node --env-file-if-exists=.env xbox/run.js",
     "igdb": "node --env-file-if-exists=.env igdb/run.js",
     "electron": "electron .",
     "test": "node --test \"tests/**/*.test.js\""

@@ -1,15 +1,17 @@
-// Núcleo del proyecto: traduce un par de instantáneas de Steam en, como
-// mucho, una sesión derivada y/o una anomalía. Pura: nada de I/O, nada de
-// SQL, nada de red. Ver docs/DESIGN.md § "cómo se calcula el tiempo
-// jugado entre dos instantáneas" para el razonamiento de cada caso.
+// Núcleo del proyecto: traduce un par de instantáneas del contador
+// acumulado de horas en, como mucho, una sesión derivada y/o una anomalía.
+// Pura: nada de I/O, nada de SQL, nada de red. Ver docs/DESIGN.md § "cómo
+// se calcula el tiempo jugado entre dos instantáneas" para el razonamiento
+// de cada caso.
 //
 // prev: { capturedAt, playtimeForeverMinutes } | null
 // curr: { capturedAt, playtimeForeverMinutes }
-function deriveSession(prev, curr) {
+// origin: qué flujo generó la sesión ('steam_sync', 'xbox_sync'...).
+function deriveSession(prev, curr, origin = 'steam_sync') {
   if (prev === null) {
     if (curr.playtimeForeverMinutes > 0) {
-      // Primera instantánea de este juego: Steam ya trae acumulado el
-      // tiempo jugado antes de que existiera el seguimiento. Se registra
+      // Primera instantánea de este juego: la plataforma ya trae acumulado
+      // el tiempo jugado antes de que existiera el seguimiento. Se registra
       // como un bloque sin fecha de inicio conocida, en vez de perderlo
       // o inventarle un principio falso.
       return {
@@ -18,7 +20,7 @@ function deriveSession(prev, curr) {
           startedAt: null,
           endedAt: curr.capturedAt,
           precision: 'derived',
-          origin: 'steam_sync',
+          origin,
           note: null,
         },
         anomaly: null,
@@ -36,7 +38,7 @@ function deriveSession(prev, curr) {
         startedAt: prev.capturedAt,
         endedAt: curr.capturedAt,
         precision: 'derived',
-        origin: 'steam_sync',
+        origin,
         note: null,
       },
       anomaly: null,

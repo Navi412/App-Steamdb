@@ -19,6 +19,16 @@ test('primera instantánea con backlog crea una sesión sin fecha de inicio', ()
   });
 });
 
+test('el origin es configurable (xbox_sync) y por defecto es steam_sync', () => {
+  const curr = { capturedAt: '2026-08-20T10:00:00.000Z', playtimeForeverMinutes: 500 };
+  assert.equal(deriveSession(null, curr).session.origin, 'steam_sync');
+  assert.equal(deriveSession(null, curr, 'xbox_sync').session.origin, 'xbox_sync');
+
+  const prev = { capturedAt: '2026-08-20T10:00:00.000Z', playtimeForeverMinutes: 500 };
+  const next = { capturedAt: '2026-08-20T12:00:00.000Z', playtimeForeverMinutes: 560 };
+  assert.equal(deriveSession(prev, next, 'xbox_sync').session.origin, 'xbox_sync');
+});
+
 test('primera instantánea con 0 minutos no crea nada', () => {
   const result = deriveSession(null, { capturedAt: '2026-08-20T10:00:00.000Z', playtimeForeverMinutes: 0 });
   assert.deepEqual(result, { session: null, anomaly: null });

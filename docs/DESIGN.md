@@ -73,7 +73,7 @@ forma. Esto es lo que hace posible que `/core` no sepa nada del origen.
 | started_at           | TEXT    | NULL si se desconoce                                             |
 | ended_at             | TEXT    | NULL si se desconoce                                             |
 | precision            | TEXT    | `'exact'` \| `'approximate'` \| `'derived'`                      |
-| origin               | TEXT    | `'steam_sync'` \| `'manual'`                                     |
+| origin               | TEXT    | `'steam_sync'` \| `'xbox_sync'` \| `'manual'`                    |
 | source_snapshot_id   | INTEGER | FK → playtime_snapshots.id, NULL si origin='manual'              |
 | note                 | TEXT    | NULL, libre                                                       |
 | created_at           | TEXT    | auditoría, cuándo se insertó la fila                              |
@@ -249,6 +249,11 @@ hasta ese momento, y cabe en un commit razonable.
   columna `source`. Deja el terreno listo para Epic, GOG y Xbox sin tocar
   `/core` ni la UI: cada plataforma es un runner nuevo que normaliza a la
   misma forma de instantánea.
-- **Xbox / Game Pass.** Cliente contra la API de Xbox Live (title history +
-  minutos jugados), OAuth de cuenta Microsoft, runner propio que reusa
-  `deriveSession`.
+- **Xbox / Game Pass.** `xbox/client.js` habla con OpenXBL (xbl.io, un
+  puente de terceros con Xbox Live, API key única en vez de la cadena OAuth
+  de Microsoft). `xbox/run.js` (`npm run sync:xbox`) da de alta los juegos
+  del historial y guarda instantáneas del stat `MinutesPlayed` de cada uno;
+  reusa `deriveSession` con `origin='xbox_sync'`. OpenXBL gratis limita a
+  ~150 peticiones/hora, así que el runner solo consulta los juegos con
+  novedades (sin instantánea o jugados desde la última sync) y, si se queda
+  sin presupuesto, para y se retoma en la siguiente pasada.
