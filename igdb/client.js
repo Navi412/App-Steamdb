@@ -56,8 +56,16 @@ async function igdbRequest(url, body, { clientId, clientSecret, fetchImpl = fetc
   return res.json();
 }
 
+// game_time_to_beats es un agregado de envíos de la comunidad, y de vez en
+// cuando trae basura (20.000 h para acabar la historia, etc.). Por encima
+// de ~1.700 h no hay ningún juego real, así que se descarta como si IGDB no
+// tuviera dato. El usuario siempre puede meterlo a mano.
+const MAX_PLAUSIBLE_MINUTES = 100_000;
+
 function secondsToMinutes(seconds) {
-  return typeof seconds === 'number' && seconds > 0 ? Math.round(seconds / 60) : null;
+  if (typeof seconds !== 'number' || seconds <= 0) return null;
+  const minutes = Math.round(seconds / 60);
+  return minutes <= MAX_PLAUSIBLE_MINUTES ? minutes : null;
 }
 
 async function searchGame(title, { clientId, clientSecret, fetchImpl = fetch } = {}) {

@@ -97,6 +97,18 @@ test('getTimeToBeat traduce hastily/completely (segundos) a minutos', async () =
   assert.deepEqual(times, { mainMinutes: 450, completionistMinutes: 1500 });
 });
 
+test('getTimeToBeat descarta valores disparatados (basura de la comunidad) como null', async () => {
+  const { getTimeToBeat } = freshClient();
+  const fetchImpl = fakeFetch([
+    { urlIncludes: 'oauth2/token', body: { access_token: 'tok', expires_in: 3600 } },
+    // hastily = 72M s (~20.000 h): imposible. completely sí es plausible.
+    { urlIncludes: 'game_time_to_beats', body: [{ game_id: 1, hastily: 72_000_000, completely: 90000 }] },
+  ]);
+
+  const times = await getTimeToBeat(1, { clientId: 'C', clientSecret: 'S', fetchImpl });
+  assert.deepEqual(times, { mainMinutes: null, completionistMinutes: 1500 });
+});
+
 test('getTimeToBeat da minutos null si IGDB no tiene datos para ese juego', async () => {
   const { getTimeToBeat } = freshClient();
   const fetchImpl = fakeFetch([
