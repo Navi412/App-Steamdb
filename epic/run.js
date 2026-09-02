@@ -135,4 +135,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { runEpicSync, loginWithCode };
+module.exports = { runEpicSync, loginWithCode, loadAuth, saveAuth, DEFAULT_AUTH_PATH };

@@ -265,3 +265,23 @@ hasta ese momento, y cabe en un commit razonable.
   `npm run sync:epic` cruza el listado de horas jugadas con la biblioteca
   para resolver título e imagen, y deriva sesiones con `origin='epic_sync'`.
   Solo cuenta lo lanzado desde el launcher de Epic.
+- **Asistente de configuración (`npm run setup`).** CLI guiado en `/setup`
+  (sin dependencias: `node:readline`, `node:child_process`). Pensado como
+  tutorial para alguien no técnico: recorre grupo por grupo (Steam
+  obligatorio; IGDB, Xbox, Epic y puerto opcionales), y por cada clave
+  **abre en el navegador la página exacta** (`setup/open-url.js`, best-effort
+  por plataforma), da los pasos en lenguaje llano, **limpia** lo pegado
+  (`cleanAnswer`: comillas, espacios, prefijo `CLAVE=`, y para Epic saca el
+  `authorizationCode` de un JSON entero) y **valida en vivo** contra la API
+  antes de guardar. `setup/validate.js` reutiliza los clientes existentes
+  (Steam `GetOwnedGames`, resolución de vanity URL / URL de perfil →
+  SteamID64, token de Twitch para IGDB, `/account` de OpenXBL,
+  `refreshAccessToken` de Epic). `setup/fields.js` es la definición
+  declarativa de grupos, enlaces y textos de ayuda (única fuente; el README
+  los resume). `setup/env-file.js` (puro) reescribe `.env` sobre
+  `.env.example` para conservar los comentarios-guía, con copia a `.env.bak`.
+  Al terminar, si Steam quedó validado, se ofrece a lanzar `db/migrate.js` +
+  `sync/run.js` (`spawnSync`, salida en directo) para dejar la app lista sin
+  más comandos. `npm run setup:check` corre solo los validadores (modo
+  doctor, no interactivo, exit 1 si algo configurado falla). Epic se activa
+  aquí: el asistente pide el `authorizationCode` y llama a `loginWithCode`.
