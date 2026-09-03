@@ -6,7 +6,25 @@ Games**) y te deja añadir a mano los juegos del resto de plataformas. Como
 Steam solo expone un contador acumulado de horas, la app guarda instantáneas
 periódicas y **deriva** de la diferencia cuánto jugaste en cada intervalo.
 
-## Requisitos
+## Descargar la app de escritorio (Windows)
+
+La forma más sencilla si no vas a tocar el código: bajar el instalador desde
+[Releases](../../releases) — `SteamDB Setup <versión>.exe` — y ejecutarlo.
+No hace falta Node, git ni terminal.
+
+Al abrir la app por primera vez, si no hay ninguna clave configurada se abre
+sola una consola con el asistente de configuración (los mismos pasos guiados
+de `npm run setup`, ver más abajo). Puedes cerrarla y volver a ella luego
+desde el menú **SteamDB → Configuración** de la propia app.
+
+Tus datos (claves, base de datos, sesión de Epic) se guardan en tu carpeta de
+usuario (`%APPDATA%\steamdb`), no dentro de la carpeta de instalación —
+sobreviven a instalar una versión nueva encima.
+
+Solo hay instalador para Windows por ahora. En macOS/Linux, sigue la vía de
+código fuente de abajo.
+
+## Requisitos (código fuente)
 
 - **Node.js 24 o superior** — la app usa el módulo nativo `node:sqlite` sin
   flags. (En 22.5–23 existe pero pide `--experimental-sqlite`; el instalador
@@ -14,7 +32,7 @@ periódicas y **deriva** de la diferencia cuánto jugaste en cada intervalo.
 - **git**, para clonar el repositorio.
 - No hay nada que compilar ni bases de datos que instalar aparte.
 
-## Instalación
+## Instalación desde el código fuente
 
 ```bash
 git clone https://github.com/<usuario>/steamdb.git
@@ -75,6 +93,7 @@ están en `.gitignore`.
 | `npm run migrate` | Aplica las migraciones de la base de datos. |
 | `npm start` | Arranca el servidor HTTP (navegador). |
 | `npm run electron` | Lo mismo, en ventana de escritorio. |
+| `npm run dist` | Genera el instalador de Windows (`dist/SteamDB Setup <versión>.exe`, vía `electron-builder`). |
 | `npm run sync` | Sincroniza Steam (biblioteca, horas y logros). |
 | `npm run sync:xbox` | Sincroniza Xbox / Game Pass (incremental; retómalo si avisa). |
 | `npm run sync:epic` | Sincroniza Epic Games. |

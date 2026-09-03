@@ -311,3 +311,33 @@ hasta ese momento, y cabe en un commit razonable.
   más comandos. `npm run setup:check` corre solo los validadores (modo
   doctor, no interactivo, exit 1 si algo configurado falla). Epic se activa
   aquí: el asistente pide el `authorizationCode` y llama a `loginWithCode`.
+- **Instalador de escritorio (`npm run dist`).** `electron-builder` empaqueta
+  `/electron` + `/api` + `/core` + `/db` + `/sync` + `/xbox` + `/epic` +
+  `/igdb` + `/ui` + `/setup` (config `build` en `package.json`) en
+  `SteamDB Setup <versión>.exe` — NSIS, asistido (no one-click, deja elegir
+  carpeta), con acceso directo de escritorio y menú inicio. Sin dependencias
+  runtime que empaquetar (`!node_modules/**/*` en `files`): el `.exe` final
+  son solo Electron + el código fuente tal cual, sin `npm install` de por
+  medio. `node:sqlite` funciona porque Electron 43 trae Node 24 embebido, la
+  misma razón por la que no hace falta compilar nada nativo.
+  **Dónde vive el instalador no puede escribir dentro de sí mismo**:
+  `electron/main.js` distingue `APP_ROOT` (el código, de solo lectura una
+  vez instalado — la raíz del proyecto en dev, `resources/app.asar`
+  empaquetado) de los **datos de usuario** (`.env`, la base de datos,
+  `epic_auth.json`), que en producción van a `app.getPath('userData')`
+  (`%APPDATA%\steamdb` en Windows) en vez de a la carpeta de instalación;
+  en dev siguen en la raíz del proyecto, igual que `npm start`. Esas tres
+  rutas se fijan como `STEAMDB_ENV_PATH` / `DB_PATH` / `EPIC_AUTH_PATH`
+  antes de requerir `/api` o `/db`, que ya sabían leer esas variables.
+  **Primer arranque sin `.env`:** como el asistente de configuración es de
+  terminal (`node:readline`) y quien se baja el `.exe` no tiene una a mano,
+  `electron/main.js` relanza su propio binario en modo
+  `ELECTRON_RUN_AS_NODE=1` apuntando a `setup/run.js`, abierto en una
+  consola nueva de Windows (`cmd /c start ... /wait`, la forma estándar de
+  darle una consola visible a un proceso de subsistema gráfico) y espera a
+  que se cierre antes de abrir la ventana principal. Si el usuario la cierra
+  sin terminar, la app arranca igual — el resto de la app ya tolera
+  credenciales ausentes (cada launcher falla por su lado sin romper nada) —
+  y puede reabrir el asistente luego desde el menú "SteamDB → Configuración".
+  Solo probado en Windows (única plataforma que pide `cmd /c start`); en
+  macOS/Linux ese spawn de consola no serviría tal cual.

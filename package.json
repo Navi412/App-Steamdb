@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Registro personal de videojuegos y horas jugadas, con sincronización desde Steam y entrada manual.",
+  "author": "Navi412",
   "type": "commonjs",
   "main": "electron/main.js",
   "engines": {
@@ -22,9 +23,48 @@
     "electron": "electron .",
     "test": "node --test \"tests/**/*.test.js\"",
     "preinstall": "node setup/check-node.js",
-    "postinstall": "node setup/postinstall.js"
+    "postinstall": "node setup/postinstall.js",
+    "dist": "electron-builder --win nsis",
+    "dist:dir": "electron-builder --win nsis --dir"
   },
   "optionalDependencies": {
     "electron": "^43.4.1"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "dev.ivanmv.steamdb",
+    "productName": "SteamDB",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "api/**/*",
+      "core/**/*",
+      "db/**/*",
+      "sync/**/*",
+      "xbox/**/*",
+      "epic/**/*",
+      "igdb/**/*",
+      "setup/**/*",
+      "ui/**/*",
+      "package.json",
+      ".env.example",
+      "!**/*.test.js",
+      "!node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }
