@@ -1,0 +1,47 @@
+name: Publicar instalador
+
+# Compila el instalador de Windows y lo adjunta a una Release cada vez que se
+# empuja un tag "vX.Y.Z". También se puede lanzar a mano desde la pestaña
+# Actions (workflow_dispatch), indicando el tag a crear.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag de la release (p. ej. v0.1.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Generar el instalador
+        run: npm run dist -- --publish never
+
+      - name: Publicar en Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: SteamDB ${{ github.event.inputs.tag || github.ref_name }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: dist/*.exe

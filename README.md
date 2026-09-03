@@ -6,10 +6,24 @@ Games**) y te deja añadir a mano los juegos del resto de plataformas. Como
 Steam solo expone un contador acumulado de horas, la app guarda instantáneas
 periódicas y **deriva** de la diferencia cuánto jugaste en cada intervalo.
 
+<p align="center">
+  <a href="https://github.com/Navi412/App-Steamdb/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Navi412/App-Steamdb?sort=semver&display_name=release&label=Descargar%20para%20Windows&logo=windows&color=2ea44f&style=for-the-badge" alt="Descargar para Windows">
+  </a>
+</p>
+
 ## Descargar la app de escritorio (Windows)
 
-La forma más sencilla si no vas a tocar el código: bajar el instalador desde
-[Releases](../../releases) — `SteamDB Setup <versión>.exe` — y ejecutarlo.
+La forma más sencilla si no vas a tocar el código:
+
+1. Abre **[la última release](https://github.com/Navi412/App-Steamdb/releases/latest)**
+   y descarga `SteamDB Setup <versión>.exe` (en la sección **Assets**).
+2. Doble clic en el `.exe`. Windows SmartScreen puede avisar de que el editor
+   es desconocido (el instalador no está firmado): pulsa **Más información →
+   Ejecutar de todas formas**.
+3. Se abre el asistente de instalación: elige carpeta y crea los accesos
+   directos. Al terminar tienes SteamDB en el menú inicio y el escritorio.
+
 No hace falta Node, git ni terminal.
 
 Al abrir la app por primera vez, si no hay ninguna clave configurada se abre
@@ -93,7 +107,7 @@ están en `.gitignore`.
 | `npm run migrate` | Aplica las migraciones de la base de datos. |
 | `npm start` | Arranca el servidor HTTP (navegador). |
 | `npm run electron` | Lo mismo, en ventana de escritorio. |
-| `npm run dist` | Genera el instalador de Windows (`dist/SteamDB Setup <versión>.exe`, vía `electron-builder`). |
+| `npm run dist` | Genera el instalador de Windows (`dist/SteamDB Setup <versión>.exe`, vía `electron-builder`). Es lo que corre CI al publicar una release. |
 | `npm run sync` | Sincroniza Steam (biblioteca, horas y logros). |
 | `npm run sync:xbox` | Sincroniza Xbox / Game Pass (incremental; retómalo si avisa). |
 | `npm run sync:epic` | Sincroniza Epic Games. |
@@ -102,6 +116,22 @@ están en `.gitignore`.
 
 El botón **Sincronizar** de la interfaz dispara Steam + Xbox + Epic en cadena;
 las plataformas sin credenciales se saltan sin romper el resto.
+
+## Publicar una versión nueva (mantenedor)
+
+El instalador se compila y se sube solo a *Releases* con GitHub Actions
+([`.github/workflows/release.yml`](.github/workflows/release.yml)) al empujar
+un tag `vX.Y.Z`:
+
+```bash
+npm version patch      # sube el número en package.json y crea el commit + tag
+git push --follow-tags
+```
+
+El workflow arranca en un runner de Windows, ejecuta `npm run dist` y adjunta
+`SteamDB Setup <versión>.exe` a la release, que pasa a ser la que enlaza el
+botón de descarga de arriba. También puede lanzarse a mano desde la pestaña
+**Actions → Publicar instalador**, indicando el tag.
 
 ## Arquitectura
 
