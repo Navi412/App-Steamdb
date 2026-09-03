@@ -265,6 +265,32 @@ hasta ese momento, y cabe en un commit razonable.
   `npm run sync:epic` cruza el listado de horas jugadas con la biblioteca
   para resolver título e imagen, y deriva sesiones con `origin='epic_sync'`.
   Solo cuenta lo lanzado desde el launcher de Epic.
+- **Juegos multiplataforma unificados en la lista.** Cada runner de sync
+  crea su propia fila en `games` (una por tienda), así que un juego que está
+  en Steam y en Xbox son dos filas. `core/group-games.js` (`groupGames`,
+  función pura) las agrupa **solo al leer** por título normalizado
+  (`groupKey`: minúsculas, sin `®™©`, sin acentos ni signos) y presenta una
+  sola entrada con las horas sumadas, una etiqueta por plataforma y los ids
+  de cada fila para enlazar a su detalle. `GET /api/games` devuelve ya el
+  resultado agrupado; `GET /api/games/:id`, `db/games.listGames` y los
+  runners siguen trabajando con filas crudas.
+  **No es una fusión en base de datos**: los contadores acumulados de cada
+  plataforma (`playtime_snapshots`) no son comparables entre sí y deben
+  seguir separados por `game_id` para que `deriveSession` no invente
+  anomalías. La lista añade además filtro por plataforma y orden
+  (alfabético / más jugadas / menos jugadas), todo en cliente sobre los
+  datos ya agrupados.
+  Límite conocido: dos juegos distintos con el mismo título normalizado se
+  fusionarían; se separan renombrando uno.
+- **Un solo botón "Sincronizar".** `POST /api/sync` encadena los tres
+  runners (`runSync` de Steam, `runXboxSync`, `runEpicSync`) en vez de solo
+  Steam. Cada launcher es independiente: si a Xbox le falta `OPENXBL_API_KEY`
+  o a Epic la sesión (`data/epic_auth.json`), se anota su error en
+  `launchers.<nombre>.error` y se sigue con el resto. La respuesta es
+  `{ gamesSynced, launchers: { steam, xbox, epic } }`; el endpoint solo
+  devuelve 500 si **ninguno** pudo sincronizar. Los comandos por launcher
+  (`npm run sync`, `sync:xbox`, `sync:epic`) siguen existiendo para uso
+  individual y para el scheduler.
 - **Asistente de configuración (`npm run setup`).** CLI guiado en `/setup`
   (sin dependencias: `node:readline`, `node:child_process`). Pensado como
   tutorial para alguien no técnico: recorre grupo por grupo (Steam

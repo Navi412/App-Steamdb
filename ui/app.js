@@ -18,10 +18,36 @@ async function fetchGames() {
   return res.json();
 }
 
-function applyFilter() {
+const SORTERS = {
+  title: (a, b) => a.title.localeCompare(b.title, 'es', { sensitivity: 'base' }),
+  most: (a, b) => b.totalMinutes - a.totalMinutes || a.title.localeCompare(b.title, 'es'),
+  least: (a, b) => a.totalMinutes - b.totalMinutes || a.title.localeCompare(b.title, 'es'),
+};
+
+// Rellena el desplegable de plataformas con las presentes en la biblioteca,
+// conservando lo que hubiera elegido el usuario.
+function refreshPlatformOptions() {
+  const select = document.getElementById('platform-filter');
+  const current = select.value;
+  const platforms = [...new Set(allGames.flatMap((g) => g.platforms || [g.platform]))].sort((a, b) =>
+    a.localeCompare(b, 'es')
+  );
+  select.innerHTML =
+    '<option value="">Todas las plataformas</option>' +
+    platforms.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+  select.value = platforms.includes(current) ? current : '';
+}
+
+function applyView() {
   const term = document.getElementById('search-input').value.trim().toLowerCase();
-  const filtered = term ? allGames.filter((g) => g.title.toLowerCase().includes(term)) : allGames;
-  renderGames(filtered);
+  const platform = document.getElementById('platform-filter').value;
+  const sort = document.getElementById('sort-order').value;
+
+  let games = allGames;
+  if (term) games = games.filter((g) => g.title.toLowerCase().includes(term));
+  if (platform) games = games.filter((g) => (g.platforms || [g.platform]).includes(platform));
+
+  renderGames([...games].sort(SORTERS[sort] || SORTERS.title));
 }
 
 function renderGames(games) {
@@ -36,10 +62,24 @@ function renderGames(games) {
   for (const game of games) {
     const li = document.createElement('li');
     li.className = 'game' + (game.archived ? ' archived' : '');
+
+    // Un juego en varias plataformas es varias filas en la BD (una por
+    // tienda). platforms[i] va alineado con platformIds[i]; la primera es la
+    // "principal" y ya es el enlace del título, el resto enlazan a su detalle.
+    const platforms = game.platforms || [game.platform];
+    const platformIds = game.platformIds || [game.id];
+    const platformTags = platforms
+      .map((p, i) =>
+        i === 0
+          ? `<span class="platform">${escapeHtml(p)}</span>`
+          : `<a class="platform" href="/game.html?id=${platformIds[i]}">${escapeHtml(p)}</a>`
+      )
+      .join('');
+
     li.innerHTML = `
       ${coverHtml(game)}
       <span class="title"><a href="/game.html?id=${game.id}">${escapeHtml(game.title)}</a></span>
-      <span class="platform">${escapeHtml(game.platform)}</span>
+      <span class="platforms">${platformTags}</span>
       <span class="total">${formatHours(game.totalMinutes)}</span>
       ${game.achievementsTotal > 0 ? `<span class="achievements">🏆 ${game.achievementsUnlocked}/${game.achievementsTotal}</span>` : ''}
       ${game.igdbMainMinutes ? `<span class="igdb">⏱ ${formatHours(game.igdbMainMinutes)}</span>` : ''}
@@ -55,7 +95,8 @@ function renderGames(games) {
 
 async function refreshGames() {
   allGames = await fetchGames();
-  applyFilter();
+  refreshPlatformOptions();
+  applyView();
   renderTotalHoursFromGames(allGames);
 }
 
@@ -97,7 +138,12 @@ syncButton.addEventListener('click', async () => {
   try {
     const result = await submitJson('/api/sync', 'POST', {});
     await refreshGames();
-    syncButton.textContent = `Hecho: ${result.gamesSynced} juegos`;
+    const failed = Object.entries(result.launchers || {})
+      .filter(([, r]) => !r.ok)
+      .map(([name]) => name);
+    syncButton.textContent = failed.length
+      ? `Hecho: ${result.gamesSynced} (sin ${failed.join(', ')})`
+      : `Hecho: ${result.gamesSynced} juegos`;
   } catch (err) {
     alert(err.message);
     syncButton.textContent = SYNC_LABEL;
@@ -109,7 +155,9 @@ syncButton.addEventListener('click', async () => {
   }
 });
 
-document.getElementById('search-input').addEventListener('input', applyFilter);
+document.getElementById('search-input').addEventListener('input', applyView);
+document.getElementById('platform-filter').addEventListener('change', applyView);
+document.getElementById('sort-order').addEventListener('change', applyView);
 
 checkHealth();
 refreshGames();

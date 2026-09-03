@@ -1,6 +1,7 @@
 const { validateManualGame, validateGameUpdate, validateIgdbUpdate } = require('../../core/game');
 const { buildManualSession } = require('../../core/session');
 const { pickBestMatch } = require('../../core/igdb');
+const { groupGames } = require('../../core/group-games');
 const gamesDb = require('../../db/games');
 const sessionsDb = require('../../db/sessions');
 const achievementsDb = require('../../db/achievements');
@@ -8,8 +9,11 @@ const igdbClient = require('../../igdb/client');
 const { readJsonBody, sendJson } = require('../http-helpers');
 
 function registerGameRoutes(router, db, { fetchImpl } = {}) {
+  // Filas crudas (una por plataforma) agrupadas por título: un juego que
+  // está en Steam y en Xbox sale una vez, con las horas sumadas y ambas
+  // plataformas. Ver core/group-games.js.
   router.get('/api/games', (req, res) => {
-    sendJson(res, 200, gamesDb.listGames(db));
+    sendJson(res, 200, groupGames(gamesDb.listGames(db)));
   });
 
   router.post('/api/games', async (req, res) => {

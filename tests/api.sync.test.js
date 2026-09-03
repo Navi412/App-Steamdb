@@ -9,9 +9,16 @@ function tempDbPath() {
   return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'steamdb-sync-api-test-')), 'test.sqlite');
 }
 
-async function withServer(fn, { fetchImpl } = {}) {
+// Ruta de auth de Epic aislada del fichero real (data/epic_auth.json): si
+// existiera una sesión real, estos tests intentarían sincronizar contra la
+// API real de Epic en vez de dar el "sin sesión" que esperan.
+function tempEpicAuthPath() {
+  return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'steamdb-sync-api-test-epic-')), 'epic_auth.json');
+}
+
+async function withServer(fn, { fetchImpl, epicAuthPath = tempEpicAuthPath() } = {}) {
   process.env.DB_PATH = tempDbPath();
-  const server = createServer({ fetchImpl });
+  const server = createServer({ fetchImpl, epicAuthPath });
   await new Promise((resolve) => server.listen(0, resolve));
   const base = `http://localhost:${server.address().port}`;
   try {
@@ -65,6 +72,28 @@ test('POST /api/sync con credenciales sincroniza y actualiza la lista de juegos'
       const games = await (await fetch(`${base}/api/games`)).json();
       assert.equal(games.length, 1);
       assert.equal(games[0].title, 'Portal 2');
+    }, { fetchImpl })
+  );
+});
+
+test('POST /api/sync informa del resultado por launcher; Xbox/Epic sin configurar no rompen la sync de Steam', async () => {
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ response: { games: [{ appid: 620, name: 'Portal 2', playtime_forever: 100 }] } }),
+  });
+
+  await withSteamEnv('K', 'S', () =>
+    withServer(async (base) => {
+      const res = await fetch(`${base}/api/sync`, { method: 'POST' });
+      assert.equal(res.status, 200);
+      const body = await res.json();
+
+      assert.equal(body.launchers.steam.ok, true);
+      assert.equal(body.launchers.xbox.ok, false);
+      assert.equal(body.launchers.epic.ok, false);
+      assert.match(body.launchers.xbox.error, /OPENXBL_API_KEY/);
+      assert.match(body.launchers.epic.error, /Epic/);
     }, { fetchImpl })
   );
 });

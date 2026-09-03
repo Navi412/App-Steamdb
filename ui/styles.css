@@ -107,7 +107,28 @@ input::placeholder { color: var(--text-muted); }
 
 ul { list-style: none; padding: 0; margin: 0; }
 
-.search-box { width: 100%; margin-bottom: 1rem; }
+.search-box { width: 100%; }
+
+/* --- barra de filtros de la lista --- */
+.filter-bar {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.filter-bar .search-box { flex: 1 1 12rem; }
+
+.filter-select {
+  font-family: var(--mono-font);
+  font-size: 1.25rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-radius: 2px;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+}
+.filter-select:focus { outline: none; border-color: var(--accent); }
 
 /* --- botones pixel art blancos --- */
 button {
@@ -174,7 +195,9 @@ li.game .title a:hover { color: var(--accent); }
   white-space: nowrap;
 }
 
+.platforms { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .platform { color: var(--text-muted); }
+a.platform:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
 li.game .achievements, .unlocked-at { color: var(--gold); border-color: var(--gold); }
 li.game .igdb { color: var(--accent); }
 .badge { color: var(--danger); border-color: var(--danger); }

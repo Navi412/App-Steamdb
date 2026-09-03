@@ -26,9 +26,19 @@
   <section>
     <div class="section-header">
       <h2>Mis juegos</h2>
-      <button id="sync-button" type="button">Sincronizar con Steam</button>
+      <button id="sync-button" type="button">Sincronizar</button>
     </div>
-    <input id="search-input" type="search" placeholder="Buscar un juego..." class="search-box">
+    <div class="filter-bar">
+      <input id="search-input" type="search" placeholder="Buscar un juego..." class="search-box">
+      <select id="platform-filter" class="filter-select">
+        <option value="">Todas las plataformas</option>
+      </select>
+      <select id="sort-order" class="filter-select">
+        <option value="title">Orden: A–Z</option>
+        <option value="most">Orden: más jugadas</option>
+        <option value="least">Orden: menos jugadas</option>
+      </select>
+    </div>
     <ul id="games-list"></ul>
   </section>
 

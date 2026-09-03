@@ -66,6 +66,22 @@ test('registrar sesiones manuales suma minutos al total del juego', async () => 
   });
 });
 
+test('GET /api/games fusiona el mismo título en distintas plataformas', async () => {
+  await withServer(async (base) => {
+    const steam = await (await postJson(base, '/api/games', { title: 'Celeste', platform: 'Steam' })).json();
+    const xbox = await (await postJson(base, '/api/games', { title: 'Celeste', platform: 'Xbox' })).json();
+
+    await postJson(base, `/api/games/${steam.id}/sessions`, { minutes: 120 });
+    await postJson(base, `/api/games/${xbox.id}/sessions`, { minutes: 45 });
+
+    const games = await (await fetch(`${base}/api/games`)).json();
+    assert.equal(games.length, 1);
+    assert.equal(games[0].totalMinutes, 165);
+    assert.deepEqual([...games[0].platforms].sort(), ['Steam', 'Xbox']);
+    assert.deepEqual([...games[0].ids].sort((a, b) => a - b), [steam.id, xbox.id].sort((a, b) => a - b));
+  });
+});
+
 test('GET /api/games/:id devuelve el juego, y 404 si no existe', async () => {
   await withServer(async (base) => {
     const created = await (await postJson(base, '/api/games', { title: 'Hades', platform: 'Switch' })).json();

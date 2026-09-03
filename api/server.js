@@ -40,13 +40,13 @@ function serveStatic(req, res) {
   });
 }
 
-function createServer({ fetchImpl } = {}) {
+function createServer({ fetchImpl, epicAuthPath } = {}) {
   const db = openDatabase();
   migrate(db);
 
   const router = createRouter();
   registerGameRoutes(router, db, { fetchImpl });
-  registerSyncRoutes(router, db, { fetchImpl });
+  registerSyncRoutes(router, db, { fetchImpl, epicAuthPath });
 
   return http.createServer(async (req, res) => {
     if (req.url === '/health' && req.method === 'GET') {
