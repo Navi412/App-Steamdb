@@ -1,6 +1,6 @@
 {
   "name": "steamdb",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Registro personal de videojuegos y horas jugadas, con sincronización desde Steam y entrada manual.",
   "author": "Navi412",
