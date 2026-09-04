@@ -199,18 +199,34 @@ gamesList.addEventListener('click', async (event) => {
 
 const addGameForm = document.getElementById('add-game-form');
 const coverNameLabel = document.getElementById('cover-name');
+const platformSelect = document.getElementById('platform-select');
+const platformOther = document.getElementById('platform-other');
 
 addGameForm.cover.addEventListener('change', () => {
   coverNameLabel.textContent = addGameForm.cover.files[0]?.name || '';
+});
+
+// "Otra…" en el desplegable revela el campo de texto libre. Además, el
+// borde del selector toma el color del grupo (PC, PlayStation...) ya
+// pintado en el optgroup, para que el desplegable siga la paleta del tema.
+platformSelect.addEventListener('change', () => {
+  const isOther = platformSelect.value === '__other__';
+  platformOther.hidden = !isOther;
+  platformOther.required = isOther;
+  if (isOther) platformOther.focus();
+
+  const group = platformSelect.selectedOptions[0]?.closest('optgroup');
+  platformSelect.style.borderColor = group ? group.style.color : '';
 });
 
 addGameForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
   try {
+    const platform = platformSelect.value === '__other__' ? platformOther.value.trim() : platformSelect.value;
     const game = await submitJson('/api/games', 'POST', {
       title: form.title.value,
-      platform: form.platform.value,
+      platform,
     });
     const file = form.cover.files[0];
     if (file) {
@@ -218,6 +234,9 @@ addGameForm.addEventListener('submit', async (event) => {
     }
     form.reset();
     coverNameLabel.textContent = '';
+    platformOther.hidden = true;
+    platformOther.required = false;
+    platformSelect.style.borderColor = '';
     await refreshGames();
   } catch (err) {
     alert(err.message);
@@ -368,6 +387,76 @@ rouletteModal.addEventListener('click', (event) => {
 wheelSpin.addEventListener('click', spinWheel);
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !rouletteModal.hidden) closeRoulette();
+});
+
+// --- selector de tema: paleta + imagen de fondo propia ---
+const themeModal = document.getElementById('theme-modal');
+const themeSwatchesEl = document.getElementById('theme-swatches');
+const themeBgFile = document.getElementById('theme-bg-file');
+const themeBgRemove = document.getElementById('theme-bg-remove');
+const themeBgName = document.getElementById('theme-bg-name');
+
+function renderThemeSwatches() {
+  const current = getStoredTheme();
+  themeSwatchesEl.innerHTML = THEMES.map(
+    (t) => `
+      <button type="button" class="theme-swatch${t.id === current ? ' is-active' : ''}" data-theme-id="${t.id}">
+        <span class="theme-swatch-check" aria-hidden="true">✓</span>
+        <span class="theme-swatch-preview" style="background:${t.preview}"></span>
+        <span class="theme-swatch-name">${escapeHtml(t.name)}</span>
+      </button>`
+  ).join('');
+}
+
+function refreshThemeBgControls() {
+  const hasBg = !!getStoredBgImage();
+  themeBgRemove.hidden = !hasBg;
+  themeBgName.textContent = hasBg ? 'Imagen de fondo activa' : 'Sin imagen personalizada';
+}
+
+function openThemeModal() {
+  renderThemeSwatches();
+  refreshThemeBgControls();
+  themeModal.hidden = false;
+}
+
+function closeThemeModal() {
+  themeModal.hidden = true;
+}
+
+document.getElementById('theme-button').addEventListener('click', openThemeModal);
+document.getElementById('theme-close').addEventListener('click', closeThemeModal);
+themeModal.addEventListener('click', (event) => {
+  if (event.target === themeModal) closeThemeModal();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !themeModal.hidden) closeThemeModal();
+});
+
+themeSwatchesEl.addEventListener('click', (event) => {
+  const btn = event.target.closest('.theme-swatch');
+  if (!btn) return;
+  setTheme(btn.dataset.themeId);
+  renderThemeSwatches();
+});
+
+themeBgFile.addEventListener('change', async () => {
+  const file = themeBgFile.files[0];
+  if (!file) return;
+  try {
+    const dataUrl = await readImageAsBackgroundDataUrl(file);
+    setBgImage(dataUrl);
+    refreshThemeBgControls();
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    themeBgFile.value = '';
+  }
+});
+
+themeBgRemove.addEventListener('click', () => {
+  clearBgImage();
+  refreshThemeBgControls();
 });
 
 loadLibraryTitle();

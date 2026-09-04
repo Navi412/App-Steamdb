@@ -5,21 +5,105 @@
 <title>SteamDB</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/styles.css">
+<script>
+  // Aplica el tema guardado antes del primer pintado, para evitar el
+  // parpadeo del tema por defecto seguido de un salto al elegido.
+  (function () {
+    try {
+      var theme = localStorage.getItem('sdb-theme');
+      if (theme) document.documentElement.dataset.theme = theme;
+      var bg = localStorage.getItem('sdb-bg-image');
+      if (bg) {
+        document.documentElement.style.setProperty('--bg-image', 'url(' + JSON.stringify(bg) + ')');
+        document.documentElement.classList.add('has-bg-image');
+      }
+    } catch {}
+  })();
+</script>
 </head>
 <body class="page-list">
   <div id="total-hours-badge" class="total-badge"></div>
 
   <header class="lib-header">
-    <p class="lib-kicker">SteamDB</p>
-    <h1 id="library-title">Biblioteca</h1>
-    <p class="lib-status">Servidor: <span id="status">comprobando…</span></p>
+    <div>
+      <p class="lib-kicker">SteamDB</p>
+      <h1 id="library-title">Biblioteca</h1>
+      <p class="lib-status">Servidor: <span id="status">comprobando…</span></p>
+    </div>
+    <button id="theme-button" type="button" class="theme-button">
+      <span class="theme-icon" aria-hidden="true">🎨</span> Tema
+    </button>
   </header>
+
+  <!-- Selector de tema: colores, fondo y foto de fondo propia -->
+  <div id="theme-modal" class="modal theme-modal" hidden>
+    <div class="modal-box">
+      <button class="modal-close" id="theme-close" type="button" aria-label="Cerrar">×</button>
+      <h2>Personalizar tema</h2>
+      <p class="theme-section-label">Paleta</p>
+      <div class="theme-swatches" id="theme-swatches"></div>
+      <p class="theme-section-label">Fondo</p>
+      <div class="theme-bg-row">
+        <label class="file-btn">
+          <input type="file" accept="image/*" id="theme-bg-file" hidden>
+          Imagen de fondo…
+        </label>
+        <button type="button" id="theme-bg-remove" hidden>Quitar imagen</button>
+        <span class="theme-bg-name" id="theme-bg-name"></span>
+      </div>
+    </div>
+  </div>
 
   <section>
     <h2>Añadir juego manual</h2>
     <form id="add-game-form" class="inline">
       <input name="title" placeholder="Título" required>
-      <input name="platform" placeholder="Plataforma (PS5, Switch...)" required>
+      <select name="platform" id="platform-select" class="filter-select" required>
+        <option value="" disabled selected>Plataforma…</option>
+        <optgroup label="PC" style="color: var(--accent)">
+          <option value="Steam">Steam</option>
+          <option value="Epic Games">Epic Games</option>
+          <option value="GOG">GOG</option>
+          <option value="Battle.net">Battle.net</option>
+          <option value="Ubisoft Connect">Ubisoft Connect</option>
+          <option value="EA App">EA App</option>
+          <option value="Xbox App (PC)">Xbox App (PC)</option>
+          <option value="PC (otro)">PC (otro)</option>
+        </optgroup>
+        <optgroup label="PlayStation" style="color: var(--accent-2)">
+          <option value="PS5">PS5</option>
+          <option value="PS4">PS4</option>
+          <option value="PS3">PS3</option>
+          <option value="PS2">PS2</option>
+          <option value="PS1">PS1</option>
+          <option value="PS Vita">PS Vita</option>
+          <option value="PSP">PSP</option>
+        </optgroup>
+        <optgroup label="Xbox" style="color: var(--ok)">
+          <option value="Xbox Series X|S">Xbox Series X|S</option>
+          <option value="Xbox One">Xbox One</option>
+          <option value="Xbox 360">Xbox 360</option>
+          <option value="Xbox">Xbox</option>
+        </optgroup>
+        <optgroup label="Nintendo" style="color: var(--danger)">
+          <option value="Switch 2">Switch 2</option>
+          <option value="Switch">Switch</option>
+          <option value="Wii U">Wii U</option>
+          <option value="Wii">Wii</option>
+          <option value="3DS">3DS</option>
+          <option value="DS">DS</option>
+        </optgroup>
+        <optgroup label="Móvil" style="color: var(--gold)">
+          <option value="Android">Android</option>
+          <option value="iOS">iOS</option>
+        </optgroup>
+        <optgroup label="Otras" style="color: var(--text-muted)">
+          <option value="Mac">Mac</option>
+          <option value="Linux">Linux</option>
+          <option value="__other__">Otra…</option>
+        </optgroup>
+      </select>
+      <input name="platform-other" id="platform-other" placeholder="Nombre de la plataforma" hidden>
       <label class="file-btn">
         <input type="file" name="cover" accept="image/*" hidden>
         Carátula…
