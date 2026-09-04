@@ -1,6 +1,6 @@
 {
   "name": "backlog",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Registro personal de videojuegos y horas jugadas, con sincronización desde Steam y entrada manual.",
   "author": "Navi412",
