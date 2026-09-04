@@ -1,7 +1,6 @@
 const path = require('node:path');
 const fs = require('node:fs');
-const { spawn } = require('node:child_process');
-const { app, BrowserWindow, Menu, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell } = require('electron');
 
 // APP_ROOT es la carpeta de código: la raíz del proyecto en desarrollo, o
 // resources/app.asar dentro del instalador (Electron lee de ahí de forma
@@ -66,29 +65,6 @@ function startServer() {
   });
 }
 
-// Abre el mismo asistente de "npm run setup" (CLI, node:readline) en una
-// consola nueva de Windows y espera a que se cierre. Se relanza el propio
-// binario de Electron en modo Node (ELECTRON_RUN_AS_NODE) para no depender
-// de que el usuario tenga Node instalado; "cmd /c start ... /wait" es lo
-// que hace falta en Windows para que un proceso de subsistema gráfico como
-// Electron.exe abra una consola visible e interactiva.
-function runSetupWizardInConsole() {
-  return new Promise((resolve) => {
-    const setupScript = path.join(APP_ROOT, 'setup', 'run.js');
-    const child = spawn(
-      'cmd.exe',
-      ['/c', 'start', '"SteamDB - Configuración"', '/wait', process.execPath, setupScript],
-      {
-        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-        cwd: APP_ROOT,
-        windowsHide: false,
-      }
-    );
-    child.on('exit', () => resolve());
-    child.on('error', () => resolve()); // si algo falla al abrir la consola, seguimos igual a la ventana principal
-  });
-}
-
 function buildMenu(win) {
   const template = [
     {
@@ -96,10 +72,7 @@ function buildMenu(win) {
       submenu: [
         {
           label: 'Configuración (Steam, Epic, Xbox…)',
-          click: async () => {
-            await runSetupWizardInConsole();
-            win.reload();
-          },
+          click: () => win.loadURL(`http://localhost:${PORT}/onboarding.html`),
         },
         { type: 'separator' },
         { role: 'quit', label: 'Salir' },
@@ -110,22 +83,6 @@ function buildMenu(win) {
 }
 
 async function createWindow() {
-  // Primera vez: sin .env no hay ni Steam configurado. Se avisa y se abre
-  // el asistente antes de mostrar la ventana; si el usuario lo cierra sin
-  // terminar, la app arranca igual (el resto de la app ya tolera credenciales
-  // ausentes con errores claros por plataforma, no hace falta bloquear).
-  if (!fs.existsSync(paths.envPath)) {
-    await dialog.showMessageBox({
-      type: 'info',
-      title: 'Bienvenido a SteamDB',
-      message: 'Antes de sincronizar tu biblioteca hace falta configurar al menos Steam.',
-      detail: 'Se va a abrir una ventana de configuración guiada. Puedes cerrarla y hacerlo luego desde el menú "SteamDB → Configuración".',
-      buttons: ['Continuar'],
-    });
-    await runSetupWizardInConsole();
-    loadEnvFile(paths.envPath); // por si el wizard escribió el .env en este mismo proceso
-  }
-
   await startServer();
 
   const win = new BrowserWindow({
@@ -135,7 +92,18 @@ async function createWindow() {
     autoHideMenuBar: true,
   });
 
+  // Los enlaces "Abrir la página" de la bienvenida guiada (Steam, Twitch,
+  // xbl.io, Epic) deben abrirse en el navegador del sistema, no como una
+  // ventana nueva de Electron.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http:') || url.startsWith('https:')) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
   buildMenu(win);
+  // El propio servidor decide si toca la bienvenida guiada o la biblioteca
+  // (ver needsOnboarding() en api/server.js): "/" vale para las dos, igual
+  // que en el navegador con "npm start".
   win.loadURL(`http://localhost:${PORT}`);
 }
 

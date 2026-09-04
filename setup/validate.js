@@ -95,6 +95,14 @@ async function validateOpenXbl({ apiKey, fetchImpl = fetch } = {}) {
   }
 }
 
+// El usuario puede pegar solo el código o el JSON entero de la página de
+// redirección de Epic; en ambos casos se queda con el código limpio.
+function extractEpicCode(raw) {
+  const match = String(raw || '').match(/authorizationCode["']?\s*[:=]\s*["']?([A-Za-z0-9]{16,})/i);
+  const code = (match ? match[1] : raw) || '';
+  return code.replace(/[^A-Za-z0-9]/g, '');
+}
+
 // Canjea el código de autorización de Epic por un refresh token y lo deja
 // guardado en data/epic_auth.json (vía epic/run.js, misma ruta que usa el
 // sync).
@@ -135,6 +143,7 @@ module.exports = {
   validateSteam,
   validateIgdb,
   validateOpenXbl,
+  extractEpicCode,
   activateEpic,
   validateEpic,
   RESOLVE_VANITY_URL,

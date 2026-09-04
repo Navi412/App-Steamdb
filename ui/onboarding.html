@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>SteamDB — bienvenida</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/styles.css">
+<script>
+  // Aplica el tema guardado antes del primer pintado (igual que el resto de
+  // páginas), para que la bienvenida no desentone si ya se eligió un tema.
+  (function () {
+    try {
+      var theme = localStorage.getItem('sdb-theme');
+      if (theme) document.documentElement.dataset.theme = theme;
+      var bg = localStorage.getItem('sdb-bg-image');
+      if (bg) {
+        document.documentElement.style.setProperty('--bg-image', 'url(' + JSON.stringify(bg) + ')');
+        document.documentElement.classList.add('has-bg-image');
+      }
+    } catch {}
+  })();
+</script>
+</head>
+<body class="page-onboarding">
+  <div class="onboarding-shell">
+    <header class="onboarding-head">
+      <p class="lib-kicker">STEAMDB</p>
+      <div class="onboarding-progress" id="onboarding-progress"></div>
+    </header>
+
+    <div class="onboarding-tracker" id="onboarding-tracker"></div>
+
+    <section class="onboarding-card" id="onboarding-card">
+      <div class="onboarding-step" id="onboarding-step"></div>
+    </section>
+  </div>
+
+  <script src="/common.js"></script>
+  <script src="/onboarding.js"></script>
+</body>
+</html>

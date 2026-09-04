@@ -30,10 +30,11 @@ La forma más sencilla si no vas a tocar el código:
 
 No hace falta Node, git ni terminal.
 
-Al abrir la app por primera vez, si no hay ninguna clave configurada se abre
-sola una consola con el asistente de configuración (los mismos pasos guiados
-de `npm run setup`, ver más abajo). Puedes cerrarla y volver a ella luego
-desde el menú **SteamDB → Configuración** de la propia app.
+Al abrir la app por primera vez, si no hay Steam configurado se enseña sola
+una **bienvenida guiada** dentro de la propia ventana: explica para qué sirve
+la app y, paso a paso (con tick verde según se va comprobando cada clave
+contra la API real), conecta Steam y — si quieres — Xbox, Epic e IGDB. Puedes
+volver a ella cuando quieras desde el menú **SteamDB → Configuración**.
 
 Tus datos (claves, base de datos, sesión de Epic) se guardan en tu carpeta de
 usuario (`%APPDATA%\steamdb`), no dentro de la carpeta de instalación —
@@ -61,9 +62,11 @@ npm run setup
 
 - `npm install` no baja casi nada (solo Electron, y es opcional — para saltártelo:
   `npm install --omit=optional`).
-- `npm run setup` es un **asistente guiado**: te abre las webs, te explica de
-  dónde sacar cada clave, valida lo que pegas y, al final, se ofrece a crear
-  la base de datos y hacer la primera sincronización.
+- `npm run setup` es un **asistente guiado** de terminal: te abre las webs, te
+  explica de dónde sacar cada clave, valida lo que pegas y, al final, se
+  ofrece a crear la base de datos y hacer la primera sincronización. Es el
+  mismo asistente que `npm start` enseña en el navegador (`/onboarding.html`)
+  si todavía no hay Steam configurado — usa el que prefieras.
 
 Cuando termine:
 

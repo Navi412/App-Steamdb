@@ -186,8 +186,7 @@ async function runEpicGroup(prompter, group, autoOpen) {
     if (!raw.trim()) return null;
 
     // Si pegó el JSON entero, sacar el código; si pegó solo el código, dejarlo.
-    const match = raw.match(/authorizationCode["']?\s*[:=]\s*["']?([A-Za-z0-9]{16,})/i);
-    const code = (match ? match[1] : raw).replace(/[^A-Za-z0-9]/g, '');
+    const code = validate.extractEpicCode(raw);
 
     process.stdout.write(dim('  canjeando el código… '));
     const result = await validate.activateEpic(code);

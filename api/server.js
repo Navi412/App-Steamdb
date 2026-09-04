@@ -6,6 +6,7 @@ const { migrate } = require('../db/migrate');
 const { createRouter } = require('./router');
 const { registerGameRoutes } = require('./routes/games');
 const { registerSyncRoutes } = require('./routes/sync');
+const { registerSetupRoutes } = require('./routes/setup');
 
 const PORT = process.env.PORT || 3000;
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -16,8 +17,21 @@ const CONTENT_TYPES = {
   '.css': 'text/css; charset=utf-8',
 };
 
+// Sin Steam configurado (obligatorio; el resto de plataformas son
+// opcionales) no tiene sentido enseñar una biblioteca vacía: se manda a la
+// bienvenida guiada antes de la propia app, tanto en el navegador como
+// dentro de Electron (los dos cargan esta misma "/").
+function needsOnboarding() {
+  return !process.env.STEAM_API_KEY || !process.env.STEAM_ID;
+}
+
 function serveStatic(req, res) {
   const { pathname } = new URL(req.url, 'http://localhost');
+  if (pathname === '/' && needsOnboarding()) {
+    res.writeHead(302, { Location: '/onboarding.html' });
+    res.end();
+    return;
+  }
   const urlPath = pathname === '/' ? '/index.html' : pathname;
   const filePath = path.join(UI_DIR, urlPath);
   const relative = path.relative(UI_DIR, filePath);
@@ -40,13 +54,14 @@ function serveStatic(req, res) {
   });
 }
 
-function createServer({ fetchImpl, epicAuthPath, gogDbPath } = {}) {
+function createServer({ fetchImpl, epicAuthPath, gogDbPath, envPath } = {}) {
   const db = openDatabase();
   migrate(db);
 
   const router = createRouter();
   registerGameRoutes(router, db, { fetchImpl });
   registerSyncRoutes(router, db, { fetchImpl, epicAuthPath, gogDbPath });
+  registerSetupRoutes(router, { fetchImpl, epicAuthPath, envPath });
 
   // Nombre para personalizar el título ("Biblioteca de <nombre>"). Sale de
   // USER_NAME en el .env; si no está, la UI usa un título genérico.
