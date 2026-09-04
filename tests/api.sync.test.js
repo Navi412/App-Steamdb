@@ -16,9 +16,16 @@ function tempEpicAuthPath() {
   return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'steamdb-sync-api-test-epic-')), 'epic_auth.json');
 }
 
-async function withServer(fn, { fetchImpl, epicAuthPath = tempEpicAuthPath() } = {}) {
+// Ruta de GOG Galaxy que no existe: sin esto la sync leería la base real
+// de Galaxy de la máquina donde corren los tests (y fallaría en CI, que no
+// la tiene). Con una ruta falsa el launcher de GOG da su "no encontrada".
+function noGalaxyPath() {
+  return path.join(os.tmpdir(), 'steamdb-test-no-galaxy.db');
+}
+
+async function withServer(fn, { fetchImpl, epicAuthPath = tempEpicAuthPath(), gogDbPath = noGalaxyPath() } = {}) {
   process.env.DB_PATH = tempDbPath();
-  const server = createServer({ fetchImpl, epicAuthPath });
+  const server = createServer({ fetchImpl, epicAuthPath, gogDbPath });
   await new Promise((resolve) => server.listen(0, resolve));
   const base = `http://localhost:${server.address().port}`;
   try {
@@ -92,8 +99,10 @@ test('POST /api/sync informa del resultado por launcher; Xbox/Epic sin configura
       assert.equal(body.launchers.steam.ok, true);
       assert.equal(body.launchers.xbox.ok, false);
       assert.equal(body.launchers.epic.ok, false);
+      assert.equal(body.launchers.gog.ok, false);
       assert.match(body.launchers.xbox.error, /OPENXBL_API_KEY/);
       assert.match(body.launchers.epic.error, /Epic/);
+      assert.match(body.launchers.gog.error, /GOG Galaxy/);
     }, { fetchImpl })
   );
 });

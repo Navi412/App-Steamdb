@@ -91,7 +91,7 @@ forma. Esto es lo que hace posible que `/core` no sepa nada del origen.
 | started_at           | TEXT    | NULL si se desconoce                                             |
 | ended_at             | TEXT    | NULL si se desconoce                                             |
 | precision            | TEXT    | `'exact'` \| `'approximate'` \| `'derived'`                      |
-| origin               | TEXT    | `'steam_sync'` \| `'xbox_sync'` \| `'epic_sync'` \| `'manual'`   |
+| origin               | TEXT    | `'steam_sync'` \| `'xbox_sync'` \| `'epic_sync'` \| `'gog_sync'` \| `'manual'` |
 | source_snapshot_id   | INTEGER | FK → playtime_snapshots.id, NULL si origin='manual'              |
 | note                 | TEXT    | NULL, libre                                                       |
 | created_at           | TEXT    | auditoría, cuándo se insertó la fila                              |
@@ -283,6 +283,25 @@ hasta ese momento, y cabe en un commit razonable.
   `npm run sync:epic` cruza el listado de horas jugadas con la biblioteca
   para resolver título e imagen, y deriva sesiones con `origin='epic_sync'`.
   Solo cuenta lo lanzado desde el launcher de Epic.
+- **GOG.** GOG no tiene API de horas, pero el cliente de escritorio (GOG
+  Galaxy) guarda todo en una SQLite local
+  (`%ProgramData%\GOG.com\Galaxy\storage\galaxy-2.0.db`). `gog/client.js`
+  la copia a un temporal (Galaxy suele tenerla bloqueada) y la lee en solo
+  lectura: biblioteca (`LibraryReleases`), minutos (`GameTimes`), última
+  vez jugado (`LastPlayedDates`) y logros (`UserAchievements` +
+  `LocalizedAchievements`). Sin credenciales; solo hace falta Galaxy
+  instalado y con sesión. `gog/run.js` (`npm run sync:gog`) da de alta los
+  juegos, guarda instantáneas del contador de minutos y deriva sesiones con
+  `origin='gog_sync'`, además de volcar los logros. Solo mira las claves
+  `gog_*`: Galaxy también recopila datos de las plataformas que le conectes
+  (Steam, Epic, Xbox…) y esos se ignoran para no duplicar lo que ya traen
+  sus propios syncs. Casos que resuelve el cliente: descarta los extras que
+  GOG mete en la biblioteca (códigos de descuento, sin título de juego) e
+  informa de cuáles; funde en una sola entrada dos claves `gog_*` con el
+  mismo título (ediciones distintas de un mismo juego). Límites reales:
+  solo hay horas/logros de lo que se haya abierto alguna vez desde Galaxy;
+  el resto entra a 0. Ruta configurable con `GOG_GALAXY_DB` (y la cuenta
+  con `GOG_GALAXY_USER_ID` si hay varias en la misma máquina).
 - **Juegos multiplataforma unificados en la lista.** Cada runner de sync
   crea su propia fila en `games` (una por tienda), así que un juego que está
   en Steam y en Xbox son dos filas. `core/group-games.js` (`groupGames`,
@@ -300,15 +319,16 @@ hasta ese momento, y cabe en un commit razonable.
   datos ya agrupados.
   Límite conocido: dos juegos distintos con el mismo título normalizado se
   fusionarían; se separan renombrando uno.
-- **Un solo botón "Sincronizar".** `POST /api/sync` encadena los tres
-  runners (`runSync` de Steam, `runXboxSync`, `runEpicSync`) en vez de solo
-  Steam. Cada launcher es independiente: si a Xbox le falta `OPENXBL_API_KEY`
-  o a Epic la sesión (`data/epic_auth.json`), se anota su error en
-  `launchers.<nombre>.error` y se sigue con el resto. La respuesta es
-  `{ gamesSynced, launchers: { steam, xbox, epic } }`; el endpoint solo
-  devuelve 500 si **ninguno** pudo sincronizar. Los comandos por launcher
-  (`npm run sync`, `sync:xbox`, `sync:epic`) siguen existiendo para uso
-  individual y para el scheduler.
+- **Un solo botón "Sincronizar".** `POST /api/sync` encadena los cuatro
+  runners (`runSync` de Steam, `runXboxSync`, `runEpicSync`, `runGogSync`)
+  en vez de solo Steam. Cada launcher es independiente: si a Xbox le falta
+  `OPENXBL_API_KEY`, a Epic la sesión (`data/epic_auth.json`) o no hay GOG
+  Galaxy instalado, se anota su error en `launchers.<nombre>.error` y se
+  sigue con el resto. La respuesta es
+  `{ gamesSynced, launchers: { steam, xbox, epic, gog } }`; el endpoint
+  solo devuelve 500 si **ninguno** pudo sincronizar. Los comandos por
+  launcher (`npm run sync`, `sync:xbox`, `sync:epic`, `sync:gog`) siguen
+  existiendo para uso individual y para el scheduler.
 - **Asistente de configuración (`npm run setup`).** CLI guiado en `/setup`
   (sin dependencias: `node:readline`, `node:child_process`). Pensado como
   tutorial para alguien no técnico: recorre grupo por grupo (Steam

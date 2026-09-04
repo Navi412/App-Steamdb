@@ -40,13 +40,13 @@ function serveStatic(req, res) {
   });
 }
 
-function createServer({ fetchImpl, epicAuthPath } = {}) {
+function createServer({ fetchImpl, epicAuthPath, gogDbPath } = {}) {
   const db = openDatabase();
   migrate(db);
 
   const router = createRouter();
   registerGameRoutes(router, db, { fetchImpl });
-  registerSyncRoutes(router, db, { fetchImpl, epicAuthPath });
+  registerSyncRoutes(router, db, { fetchImpl, epicAuthPath, gogDbPath });
 
   // Nombre para personalizar el título ("Biblioteca de <nombre>"). Sale de
   // USER_NAME en el .env; si no está, la UI usa un título genérico.

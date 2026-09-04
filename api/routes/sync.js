@@ -1,13 +1,14 @@
 const { runSync } = require('../../sync/run');
 const { runXboxSync } = require('../../xbox/run');
 const { runEpicSync } = require('../../epic/run');
+const { runGogSync } = require('../../gog/run');
 const { sendJson } = require('../http-helpers');
 
 // Un solo botón "Sincronizar" dispara todos los launchers en cadena. Cada
-// uno es independiente: si Xbox no tiene API key o Epic no tiene sesión, se
-// anota su error y se sigue con el resto. El endpoint solo devuelve 500 si
-// ninguno pudo sincronizar.
-function registerSyncRoutes(router, db, { fetchImpl, epicAuthPath } = {}) {
+// uno es independiente: si Xbox no tiene API key, Epic no tiene sesión o no
+// hay GOG Galaxy instalado, se anota su error y se sigue con el resto. El
+// endpoint solo devuelve 500 si ninguno pudo sincronizar.
+function registerSyncRoutes(router, db, { fetchImpl, epicAuthPath, gogDbPath } = {}) {
   let syncing = false;
 
   router.post('/api/sync', async (req, res) => {
@@ -20,6 +21,7 @@ function registerSyncRoutes(router, db, { fetchImpl, epicAuthPath } = {}) {
       ['steam', () => runSync({ db, apiKey: process.env.STEAM_API_KEY, steamId: process.env.STEAM_ID, fetchImpl })],
       ['xbox', () => runXboxSync({ db, apiKey: process.env.OPENXBL_API_KEY, fetchImpl })],
       ['epic', () => runEpicSync({ db, fetchImpl, authPath: epicAuthPath })],
+      ['gog', () => runGogSync({ db, dbPath: gogDbPath })],
     ];
 
     syncing = true;
