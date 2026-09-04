@@ -40,7 +40,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          name: SteamDB ${{ github.event.inputs.tag || github.ref_name }}
+          name: Backlog ${{ github.event.inputs.tag || github.ref_name }}
           draft: false
           prerelease: false
           fail_on_unmatched_files: true

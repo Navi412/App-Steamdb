@@ -389,12 +389,38 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !rouletteModal.hidden) closeRoulette();
 });
 
-// --- selector de tema: paleta + imagen de fondo propia ---
-const themeModal = document.getElementById('theme-modal');
+// --- ajustes: plataformas conectadas + tema de la interfaz ---
+const settingsModal = document.getElementById('settings-modal');
+const settingsPlatformList = document.getElementById('settings-platform-list');
 const themeSwatchesEl = document.getElementById('theme-swatches');
 const themeBgFile = document.getElementById('theme-bg-file');
 const themeBgRemove = document.getElementById('theme-bg-remove');
 const themeBgName = document.getElementById('theme-bg-name');
+
+// Mismos grupos que la bienvenida guiada (/onboarding.html): un resumen en
+// miniatura de qué está conectado, con el mismo componente de lista con
+// ticks que ya usa el paso final del asistente.
+const SETTINGS_PLATFORM_LABELS = { steam: 'Steam', igdb: 'IGDB', xbox: 'Xbox', epic: 'Epic' };
+
+async function renderSettingsPlatforms() {
+  settingsPlatformList.innerHTML = '<li><span class="ob-summary-detail">Comprobando…</span></li>';
+  try {
+    const [fields, status] = await Promise.all([
+      fetch('/api/setup/fields').then((r) => r.json()),
+      fetch('/api/setup/status').then((r) => r.json()),
+    ]);
+    const rows = fields.groups
+      .filter((g) => g.id in SETTINGS_PLATFORM_LABELS)
+      .map((g) => {
+        const done = g.id === 'epic' ? status.epic?.ok : (g.fields || []).every((f) => status.values[f.key]?.filled);
+        return `<li class="${done ? 'done' : 'skipped'}"><span class="ob-summary-icon">${done ? '✓' : '–'}</span><span class="ob-summary-name">${escapeHtml(SETTINGS_PLATFORM_LABELS[g.id])}</span><span class="ob-summary-detail">${done ? 'conectado' : 'sin configurar'}</span></li>`;
+      })
+      .join('');
+    settingsPlatformList.innerHTML = rows;
+  } catch {
+    settingsPlatformList.innerHTML = '<li><span class="ob-summary-detail">No se pudo comprobar el estado.</span></li>';
+  }
+}
 
 function renderThemeSwatches() {
   const current = getStoredTheme();
@@ -414,23 +440,24 @@ function refreshThemeBgControls() {
   themeBgName.textContent = hasBg ? 'Imagen de fondo activa' : 'Sin imagen personalizada';
 }
 
-function openThemeModal() {
+function openSettingsModal() {
+  renderSettingsPlatforms();
   renderThemeSwatches();
   refreshThemeBgControls();
-  themeModal.hidden = false;
+  settingsModal.hidden = false;
 }
 
-function closeThemeModal() {
-  themeModal.hidden = true;
+function closeSettingsModal() {
+  settingsModal.hidden = true;
 }
 
-document.getElementById('theme-button').addEventListener('click', openThemeModal);
-document.getElementById('theme-close').addEventListener('click', closeThemeModal);
-themeModal.addEventListener('click', (event) => {
-  if (event.target === themeModal) closeThemeModal();
+document.getElementById('settings-button').addEventListener('click', openSettingsModal);
+document.getElementById('settings-close').addEventListener('click', closeSettingsModal);
+settingsModal.addEventListener('click', (event) => {
+  if (event.target === settingsModal) closeSettingsModal();
 });
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && !themeModal.hidden) closeThemeModal();
+  if (event.key === 'Escape' && !settingsModal.hidden) closeSettingsModal();
 });
 
 themeSwatchesEl.addEventListener('click', (event) => {

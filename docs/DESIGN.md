@@ -1,4 +1,4 @@
-# Diseño — SteamDB
+# Diseño — Backlog
 
 ## 1. Esquema de base de datos
 
@@ -352,7 +352,7 @@ hasta ese momento, y cabe en un commit razonable.
 - **Instalador de escritorio (`npm run dist`).** `electron-builder` empaqueta
   `/electron` + `/api` + `/core` + `/db` + `/sync` + `/xbox` + `/epic` +
   `/igdb` + `/ui` + `/setup` (config `build` en `package.json`) en
-  `SteamDB Setup <versión>.exe` — NSIS, asistido (no one-click, deja elegir
+  `Backlog Setup <versión>.exe` — NSIS, asistido (no one-click, deja elegir
   carpeta), con acceso directo de escritorio y menú inicio. Sin dependencias
   runtime que empaquetar (`!node_modules/**/*` en `files`): el `.exe` final
   son solo Electron + el código fuente tal cual, sin `npm install` de por
@@ -363,19 +363,22 @@ hasta ese momento, y cabe en un commit razonable.
   vez instalado — la raíz del proyecto en dev, `resources/app.asar`
   empaquetado) de los **datos de usuario** (`.env`, la base de datos,
   `epic_auth.json`), que en producción van a `app.getPath('userData')`
-  (`%APPDATA%\steamdb` en Windows) en vez de a la carpeta de instalación;
+  (`%APPDATA%\Backlog` en Windows) en vez de a la carpeta de instalación;
   en dev siguen en la raíz del proyecto, igual que `npm start`. Esas tres
   rutas se fijan como `STEAMDB_ENV_PATH` / `DB_PATH` / `EPIC_AUTH_PATH`
   antes de requerir `/api` o `/db`, que ya sabían leer esas variables.
-  **Primer arranque sin `.env`:** como el asistente de configuración es de
-  terminal (`node:readline`) y quien se baja el `.exe` no tiene una a mano,
-  `electron/main.js` relanza su propio binario en modo
-  `ELECTRON_RUN_AS_NODE=1` apuntando a `setup/run.js`, abierto en una
-  consola nueva de Windows (`cmd /c start ... /wait`, la forma estándar de
-  darle una consola visible a un proceso de subsistema gráfico) y espera a
-  que se cierre antes de abrir la ventana principal. Si el usuario la cierra
+  Como la app se llamaba antes "SteamDB", `migrateLegacyUserData()` copia
+  (nunca mueve) `.env` y `data/` desde `%APPDATA%\SteamDB` la primera vez
+  que arranca una versión empaquetada que ya se llama Backlog, si la carpeta
+  nueva todavía no tiene `.env`.
+  **Primer arranque sin `.env`:** en vez de un asistente de terminal (la
+  primera versión usaba `cmd /c start` para abrir una consola — se abandonó
+  por poco fiable empaquetado: el quoting se rompía y no llegaba a abrirse),
+  `api/server.js` redirige `/` a `/onboarding.html` mientras falte Steam
+  (`needsOnboarding()`), tanto en Electron como en el navegador. Esa página
+  reutiliza `setup/fields.js` (copia/enlaces) y `setup/validate.js`
+  (comprobación en vivo) a través de `/api/setup/*`. Si el usuario la cierra
   sin terminar, la app arranca igual — el resto de la app ya tolera
   credenciales ausentes (cada launcher falla por su lado sin romper nada) —
-  y puede reabrir el asistente luego desde el menú "SteamDB → Configuración".
-  Solo probado en Windows (única plataforma que pide `cmd /c start`); en
-  macOS/Linux ese spawn de consola no serviría tal cual.
+  y puede reabrirla luego desde el menú "Backlog → Configuración" o desde el
+  icono de ajustes de la propia biblioteca.

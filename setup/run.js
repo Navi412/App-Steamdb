@@ -211,7 +211,7 @@ async function runWizard() {
   const values = readEnv();
   const prompter = createPrompter();
 
-  console.log(bold('\n  SteamDB · asistente de instalación'));
+  console.log(bold('\n  Backlog · asistente de instalación'));
   console.log(
     dim(
       '  Te guío para conseguir cada clave: abro la web que toca, te doy los pasos\n' +
@@ -289,7 +289,7 @@ async function runDoctor() {
   const fromFile = readEnv();
   const val = (k) => process.env[k] || fromFile[k] || '';
 
-  console.log(bold('\nSteamDB · revisión de configuración\n'));
+  console.log(bold('\nBacklog · revisión de configuración\n'));
   const label = (t) => `${t} ${dim('.'.repeat(Math.max(2, 22 - t.length)))} `;
   let anyFailure = false;
 

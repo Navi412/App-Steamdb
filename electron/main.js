@@ -11,16 +11,36 @@ const APP_ROOT = path.join(__dirname, '..');
 // Los datos del usuario (.env, la base de datos, la sesión de Epic) no
 // pueden vivir dentro del instalador: en desarrollo siguen en la raíz del
 // proyecto (igual que "npm start"), pero empaquetado usan la carpeta de
-// datos de usuario del sistema operativo (p. ej. %APPDATA%\SteamDB), que
-// sí es escribible sin permisos de administrador y sobrevive a reinstalar
-// una versión nueva.
+// datos de usuario del sistema operativo (p. ej. %APPDATA%\Backlog), que sí
+// es escribible sin permisos de administrador y sobrevive a reinstalar una
+// versión nueva.
 function resolveDataPaths() {
   const base = app.isPackaged ? app.getPath('userData') : APP_ROOT;
+  if (app.isPackaged) migrateLegacyUserData(base);
   return {
     envPath: path.join(base, '.env'),
     dbPath: path.join(base, 'data', 'steamdb.sqlite'),
     epicAuthPath: path.join(base, 'data', 'epic_auth.json'),
   };
+}
+
+// La app se llamaba "SteamDB": quien la tuviera instalada con ese nombre
+// tiene su .env y su base de datos en %APPDATA%\SteamDB. Si ya hay datos en
+// la carpeta nueva no se toca nada; si no, se copian (nunca se mueven, para
+// no arriesgar el original) antes de que el resto de la app los busque.
+function migrateLegacyUserData(newBase) {
+  if (fs.existsSync(path.join(newBase, '.env'))) return;
+  const legacyBase = path.join(path.dirname(newBase), 'SteamDB');
+  if (legacyBase === newBase || !fs.existsSync(legacyBase)) return;
+
+  fs.mkdirSync(newBase, { recursive: true });
+  for (const item of ['.env', 'data']) {
+    const from = path.join(legacyBase, item);
+    const to = path.join(newBase, item);
+    if (fs.existsSync(from) && !fs.existsSync(to)) {
+      fs.cpSync(from, to, { recursive: true });
+    }
+  }
 }
 
 const paths = resolveDataPaths();
@@ -68,7 +88,7 @@ function startServer() {
 function buildMenu(win) {
   const template = [
     {
-      label: 'SteamDB',
+      label: 'Backlog',
       submenu: [
         {
           label: 'Configuración (Steam, Epic, Xbox…)',
@@ -88,8 +108,12 @@ async function createWindow() {
   const win = new BrowserWindow({
     width: 1150,
     height: 820,
-    title: 'SteamDB',
+    title: 'Backlog',
     autoHideMenuBar: true,
+    // En Windows empaquetado el .exe ya lleva este icono (build.win.icon);
+    // esto es sobre todo para que "npm run electron" en desarrollo no
+    // enseñe el icono genérico de Electron.
+    icon: path.join(APP_ROOT, 'build', 'icon.ico'),
   });
 
   // Los enlaces "Abrir la página" de la bienvenida guiada (Steam, Twitch,

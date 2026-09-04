@@ -22,7 +22,7 @@ function lt(a, b) {
 function nodeProblem() {
   if (lt(parse(process.versions.node), MIN)) {
     return (
-      `SteamDB necesita Node.js ${MIN.join('.')} o superior (tienes ${process.versions.node}).\n` +
+      `Backlog necesita Node.js ${MIN.join('.')} o superior (tienes ${process.versions.node}).\n` +
       '  Recomendado: la última LTS desde https://nodejs.org\n' +
       '  Con nvm:  nvm install --lts  &&  nvm use --lts'
     );

@@ -1,5 +1,5 @@
 {
-  "name": "steamdb",
+  "name": "backlog",
   "version": "0.1.1",
   "private": true,
   "description": "Registro personal de videojuegos y horas jugadas, con sincronización desde Steam y entrada manual.",
@@ -36,7 +36,7 @@
   },
   "build": {
     "appId": "dev.ivanmv.steamdb",
-    "productName": "SteamDB",
+    "productName": "Backlog",
     "directories": {
       "output": "dist"
     },
@@ -52,12 +52,14 @@
       "igdb/**/*",
       "setup/**/*",
       "ui/**/*",
+      "build/icon.ico",
       "package.json",
       ".env.example",
       "!**/*.test.js",
       "!node_modules/**/*"
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         "nsis"
       ]

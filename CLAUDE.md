@@ -1,4 +1,4 @@
-# SteamDB — registro de videojuegos y horas jugadas
+# Backlog — registro de videojuegos y horas jugadas
 
 Aplicación personal para llevar el registro de videojuegos y horas jugadas,
 con sincronización automática desde la API oficial de Steam y entrada manual

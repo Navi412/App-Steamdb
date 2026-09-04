@@ -81,13 +81,13 @@ function renderWelcome() {
   setStepHTML(`
     <p class="ob-eyebrow">Bienvenido</p>
     <h1>Tu biblioteca de videojuegos, en un solo sitio</h1>
-    <p>SteamDB junta cuánto has jugado en Steam, Xbox / Game Pass, Epic Games y GOG,
+    <p>Backlog junta cuánto has jugado en Steam, Xbox / Game Pass, Epic Games y GOG,
     y te deja añadir a mano el resto de plataformas (PlayStation, Switch, Mac...).
     Todo en una sola estantería, con las horas siempre al día.</p>
     <p>Steam no guarda un historial de horas: la app hace capturas periódicas del
     contador y calcula sola cuánto jugaste en cada rato. Por eso hace falta conectar
     al menos tu cuenta de Steam — el resto de plataformas son opcionales y se pueden
-    añadir luego desde el menú «SteamDB → Configuración».</p>
+    añadir luego desde el menú «Backlog → Configuración».</p>
     <div class="ob-feature-row">
       <span class="ob-feature-pill" style="animation-delay:.05s">🕹️ Steam</span>
       <span class="ob-feature-pill" style="animation-delay:.12s">🎮 Xbox</span>
@@ -294,7 +294,7 @@ function renderFinish() {
   setStepHTML(`
     <p class="ob-eyebrow">Último paso</p>
     <h1>Todo listo</h1>
-    <p>Puedes cambiar cualquier cosa luego desde el menú <strong>SteamDB → Configuración</strong>.</p>
+    <p>Puedes cambiar cualquier cosa luego desde el menú <strong>Backlog → Configuración</strong>.</p>
     <ul class="ob-summary-list">${rows}</ul>
     <div id="ob-result"></div>
     <div class="ob-actions">

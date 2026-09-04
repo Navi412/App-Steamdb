@@ -1,4 +1,4 @@
-# SteamDB
+# Backlog
 
 Registro personal de videojuegos y horas jugadas. Sincroniza automáticamente
 tu biblioteca de **Steam** (y, opcionalmente, **Xbox / Game Pass** y **Epic
@@ -21,12 +21,12 @@ guarda en la base de datos y manda sobre el arte de la tienda.
 La forma más sencilla si no vas a tocar el código:
 
 1. Abre **[la última release](https://github.com/Navi412/App-Steamdb/releases/latest)**
-   y descarga `SteamDB Setup <versión>.exe` (en la sección **Assets**).
+   y descarga `Backlog Setup <versión>.exe` (en la sección **Assets**).
 2. Doble clic en el `.exe`. Windows SmartScreen puede avisar de que el editor
    es desconocido (el instalador no está firmado): pulsa **Más información →
    Ejecutar de todas formas**.
 3. Se abre el asistente de instalación: elige carpeta y crea los accesos
-   directos. Al terminar tienes SteamDB en el menú inicio y el escritorio.
+   directos. Al terminar tienes Backlog en el menú inicio y el escritorio.
 
 No hace falta Node, git ni terminal.
 
@@ -34,11 +34,14 @@ Al abrir la app por primera vez, si no hay Steam configurado se enseña sola
 una **bienvenida guiada** dentro de la propia ventana: explica para qué sirve
 la app y, paso a paso (con tick verde según se va comprobando cada clave
 contra la API real), conecta Steam y — si quieres — Xbox, Epic e IGDB. Puedes
-volver a ella cuando quieras desde el menú **SteamDB → Configuración**.
+volver a ella cuando quieras desde el icono **⚙️ Ajustes** de la biblioteca o
+desde el menú **Backlog → Configuración**.
 
 Tus datos (claves, base de datos, sesión de Epic) se guardan en tu carpeta de
-usuario (`%APPDATA%\steamdb`), no dentro de la carpeta de instalación —
-sobreviven a instalar una versión nueva encima.
+usuario (`%APPDATA%\Backlog`), no dentro de la carpeta de instalación —
+sobreviven a instalar una versión nueva encima. Si vienes de una versión
+anterior de la app (se llamaba **SteamDB**), tus datos se copian solos la
+primera vez que abras esta.
 
 Solo hay instalador para Windows por ahora. En macOS/Linux, sigue la vía de
 código fuente de abajo.
@@ -114,7 +117,7 @@ están en `.gitignore`.
 | `npm run migrate` | Aplica las migraciones de la base de datos. |
 | `npm start` | Arranca el servidor HTTP (navegador). |
 | `npm run electron` | Lo mismo, en ventana de escritorio. |
-| `npm run dist` | Genera el instalador de Windows (`dist/SteamDB Setup <versión>.exe`, vía `electron-builder`). Es lo que corre CI al publicar una release. |
+| `npm run dist` | Genera el instalador de Windows (`dist/Backlog Setup <versión>.exe`, vía `electron-builder`). Es lo que corre CI al publicar una release. |
 | `npm run sync` | Sincroniza Steam (biblioteca, horas y logros). |
 | `npm run sync:xbox` | Sincroniza Xbox / Game Pass (incremental; retómalo si avisa). |
 | `npm run sync:epic` | Sincroniza Epic Games. |
@@ -136,7 +139,7 @@ git push --follow-tags
 ```
 
 El workflow arranca en un runner de Windows, ejecuta `npm run dist` y adjunta
-`SteamDB Setup <versión>.exe` a la release, que pasa a ser la que enlaza el
+`Backlog Setup <versión>.exe` a la release, que pasa a ser la que enlaza el
 botón de descarga de arriba. También puede lanzarse a mano desde la pestaña
 **Actions → Publicar instalador**, indicando el tag.
 

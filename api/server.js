@@ -15,6 +15,7 @@ const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
+  '.ico': 'image/x-icon',
 };
 
 // Sin Steam configurado (obligatorio; el resto de plataformas son
@@ -86,7 +87,7 @@ function createServer({ fetchImpl, epicAuthPath, gogDbPath, envPath } = {}) {
 
 if (require.main === module) {
   createServer().listen(PORT, () => {
-    console.log(`SteamDB escuchando en http://localhost:${PORT}`);
+    console.log(`Backlog escuchando en http://localhost:${PORT}`);
   });
 }
 

@@ -1383,16 +1383,21 @@ li.achievement .unlocked-at { margin-left: auto; font-size: 0.72rem; }
 }
 #wheel-go:hover { text-decoration: none; background: rgba(124, 196, 255, 0.12); }
 
-/* ═══════════════════ bienvenida guiada (/onboarding.html) ═══════════════ */
+/* ═══════════════════ bienvenida guiada (/onboarding.html) ═══════════════
+   Letras y controles más grandes a propósito: la ve gente que igual no ha
+   tocado nunca un asistente de configuración, así que aquí se prioriza que
+   se lea cómodo por encima de la densidad que tiene el resto de la app. */
 body.page-onboarding {
-  max-width: 40rem;
+  max-width: 46rem;
   margin: 3rem auto 4rem;
+  font-size: 1.08rem;
 }
 
-.onboarding-head { margin-bottom: 1.6rem; }
+.onboarding-head { margin-bottom: 1.8rem; }
+.page-onboarding .lib-kicker { font-size: 0.82rem; }
 .onboarding-progress {
-  margin-top: 0.7rem;
-  height: 6px;
+  margin-top: 0.8rem;
+  height: 8px;
   border-radius: 999px;
   background: var(--glass-strong);
   border: 1px solid var(--stroke);
@@ -1413,16 +1418,16 @@ body.page-onboarding {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 1.6rem;
+  margin-bottom: 1.8rem;
   position: relative;
 }
 .onboarding-tracker::before {
   content: '';
   position: absolute;
-  top: 0.85rem;
+  top: 1rem;
   left: 1.5rem;
   right: 1.5rem;
-  height: 2px;
+  height: 3px;
   background: var(--stroke);
   z-index: 0;
 }
@@ -1432,18 +1437,18 @@ body.page-onboarding {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   flex: 1 1 0;
   min-width: 0;
 }
 .ob-step-dot .dot {
-  width: 1.7rem;
-  height: 1.7rem;
+  width: 2.1rem;
+  height: 2.1rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-muted);
   background: var(--bg);
@@ -1452,16 +1457,16 @@ body.page-onboarding {
     color 0.25s var(--ease), transform 0.25s var(--ease);
 }
 .ob-step-dot .label {
-  font-size: 0.68rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
   text-align: center;
-  max-width: 5.5rem;
+  max-width: 6.5rem;
   line-height: 1.25;
 }
 .ob-step-dot.is-current .dot {
   border-color: var(--accent);
   color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(124, 196, 255, 0.16);
+  box-shadow: 0 0 0 5px rgba(124, 196, 255, 0.16);
 }
 .ob-step-dot.is-current .label { color: var(--text); font-weight: 600; }
 .ob-step-dot.is-done .dot {
@@ -1479,7 +1484,7 @@ body.page-onboarding {
 }
 
 /* --- tarjeta con el paso actual --- */
-.onboarding-card { padding: 2rem 2.2rem; }
+.onboarding-card { padding: 2.6rem 2.8rem; }
 .onboarding-step { animation: obStepIn 0.4s var(--ease); }
 @keyframes obStepIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -1487,38 +1492,38 @@ body.page-onboarding {
 }
 
 .ob-eyebrow {
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent);
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.6rem;
 }
 .onboarding-step h1 {
-  font-size: 1.7rem;
-  margin: 0 0 0.8rem;
+  font-size: 2.2rem;
+  margin: 0 0 1rem;
 }
-.onboarding-step p { margin: 0 0 0.9rem; color: var(--text-muted); line-height: 1.6; }
+.onboarding-step p { margin: 0 0 1rem; color: var(--text-muted); line-height: 1.65; }
 .onboarding-step p:last-of-type { margin-bottom: 0; }
 
 /* welcome: mini iconos de plataforma como presentación animada */
 .ob-feature-row {
   display: flex;
-  gap: 0.7rem;
+  gap: 0.8rem;
   flex-wrap: wrap;
-  margin: 1.4rem 0 1.6rem;
+  margin: 1.6rem 0 1.8rem;
 }
 .ob-feature-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.78rem;
+  gap: 0.45rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text);
   background: var(--glass-strong);
   border: 1px solid var(--stroke);
   border-radius: 999px;
-  padding: 0.45rem 0.9rem;
+  padding: 0.6rem 1.1rem;
   opacity: 0;
   animation: obFadeUp 0.5s var(--ease) forwards;
 }
@@ -1529,59 +1534,61 @@ body.page-onboarding {
 
 .ob-need {
   display: inline-block;
-  font-size: 0.78rem;
+  font-size: 0.92rem;
   color: var(--text-muted);
   background: var(--glass);
   border: 1px solid var(--stroke);
   border-radius: var(--radius-sm);
-  padding: 0.4rem 0.7rem;
-  margin-bottom: 1.2rem;
+  padding: 0.5rem 0.85rem;
+  margin-bottom: 1.3rem;
 }
 
-.ob-field { margin-bottom: 1.4rem; }
+.ob-field { margin-bottom: 1.6rem; }
 .ob-field label {
   display: block;
-  font-size: 0.88rem;
+  font-size: 1.05rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 .ob-field input {
   width: 100%;
+  font-size: 1.05rem;
+  padding: 0.8rem 1rem;
 }
 .ob-guide {
   list-style: none;
   padding: 0;
-  margin: 0.6rem 0 0;
+  margin: 0.7rem 0 0;
 }
 .ob-guide li {
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   color: var(--text-muted);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 .ob-link-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.82rem;
+  gap: 0.45rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--accent);
   background: rgba(124, 196, 255, 0.1);
   border: 1px solid rgba(124, 196, 255, 0.3);
   border-radius: var(--radius-sm);
-  padding: 0.5rem 0.9rem;
-  margin: 0.5rem 0 0.9rem;
+  padding: 0.6rem 1.05rem;
+  margin: 0.6rem 0 1rem;
 }
 .ob-link-btn:hover { text-decoration: none; background: rgba(124, 196, 255, 0.18); }
 
 .ob-result {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
+  gap: 0.55rem;
+  font-size: 1rem;
   font-weight: 600;
   border-radius: var(--radius-sm);
-  padding: 0.65rem 0.9rem;
-  margin: 0.9rem 0;
+  padding: 0.8rem 1.05rem;
+  margin: 1rem 0;
   animation: obFadeUp 0.3s var(--ease);
 }
 .ob-result.ok { color: var(--ok); background: rgba(126, 224, 160, 0.12); border: 1px solid rgba(126, 224, 160, 0.3); }
@@ -1601,56 +1608,60 @@ body.page-onboarding {
 .onboarding-step .ob-actions {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 1rem;
   flex-wrap: wrap;
-  margin-top: 1.6rem;
+  margin-top: 1.8rem;
+}
+.onboarding-step .ob-actions button:not(.ob-skip):not(.ob-back) {
+  font-size: 1rem;
+  padding: 0.85rem 1.4rem;
 }
 .ob-skip {
-  font-size: 0.85rem;
+  font-size: 1rem;
   color: var(--text-muted);
   background: transparent;
   border: none;
   box-shadow: none;
-  padding: 0.5rem 0.2rem;
+  padding: 0.6rem 0.2rem;
 }
 .ob-skip:hover { color: var(--text); background: transparent; transform: none; box-shadow: none; }
 .ob-back {
-  font-size: 0.8rem;
+  font-size: 0.92rem;
   color: var(--text-muted);
   background: transparent;
   border: none;
   box-shadow: none;
   padding: 0;
-  margin-bottom: 1rem;
+  margin-bottom: 1.1rem;
   cursor: pointer;
 }
 .ob-back:hover { color: var(--text); background: transparent; transform: none; box-shadow: none; text-decoration: underline; }
 
 /* --- resumen final --- */
-.ob-summary-list { list-style: none; padding: 0; margin: 0 0 1.6rem; }
+.ob-summary-list { list-style: none; padding: 0; margin: 0 0 1.8rem; }
 .ob-summary-list li {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.6rem 0;
+  gap: 0.8rem;
+  padding: 0.75rem 0;
   border-bottom: 1px solid var(--stroke);
-  font-size: 0.92rem;
+  font-size: 1.05rem;
 }
 .ob-summary-list li:last-child { border-bottom: none; }
 .ob-summary-icon {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.8rem;
+  height: 1.8rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   flex: 0 0 auto;
 }
 .ob-summary-list li.done .ob-summary-icon { background: var(--ok); color: var(--bg); }
 .ob-summary-list li.skipped .ob-summary-icon { background: var(--glass-strong); color: var(--text-muted); border: 1px dashed var(--stroke-strong); }
 .ob-summary-name { font-weight: 600; }
-.ob-summary-detail { color: var(--text-muted); font-size: 0.82rem; }
+.ob-summary-detail { color: var(--text-muted); font-size: 0.92rem; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation-duration: 0.001ms !important; }

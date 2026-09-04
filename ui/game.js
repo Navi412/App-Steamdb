@@ -5,7 +5,7 @@ function gameIdFromUrl() {
 }
 
 function renderHeader(game) {
-  document.title = `${game.title} — SteamDB`;
+  document.title = `${game.title} — Backlog`;
   document.getElementById('game-header').innerHTML = `
     ${coverHtml(game, { size: 'lg' })}
     <h1>${escapeHtml(game.title)}</h1>

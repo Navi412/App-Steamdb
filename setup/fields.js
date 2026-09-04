@@ -14,7 +14,7 @@ const GROUPS = [
     required: true,
     need: 'una clave de API y el enlace de tu perfil · ~2 min',
     intro:
-      'SteamDB lee tu biblioteca y tus horas desde la Web API oficial de Steam.\n' +
+      'Backlog lee tu biblioteca y tus horas desde la Web API oficial de Steam.\n' +
       'Es lo único imprescindible; el resto de plataformas son opcionales.',
     fields: [
       {
@@ -64,7 +64,7 @@ const GROUPS = [
         guide: [
           '1. Se abrirá el formulario "Registrar tu aplicación" de Twitch.',
           '   (Inicia sesión; Twitch pedirá activar la verificación en dos pasos de tu cuenta.)',
-          '2. Nombre: el que quieras, p. ej.  SteamDB personal',
+          '2. Nombre: el que quieras, p. ej.  Backlog personal',
           '3. URL de redirección de OAuth:  http://localhost',
           '4. Categoría: "Application Integration".   Tipo de cliente: "Confidential".',
           '5. Pulsa "Crear", entra en la aplicación recién creada y copia el "ID de cliente".',
