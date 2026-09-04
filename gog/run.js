@@ -27,7 +27,7 @@ function runGogSync({ db, dbPath, now = () => new Date().toISOString() } = {}) {
         source: 'gog',
         externalId: entry.gogId,
         title: entry.title,
-        iconUrl: null,
+        iconUrl: entry.coverUrl,
         platform: 'GOG',
       });
 

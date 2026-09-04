@@ -51,6 +51,21 @@ function parseTitle(pieceValue) {
   }
 }
 
+// Galaxy guarda, por juego, una pieza `originalImages` con las URLs del arte
+// que usa su propia interfaz. `verticalCover` es la carátula 2:3 (formato
+// caja), justo lo que enseña la estantería; si falta, se cae al icono
+// cuadrado. Son URLs de un CDN público (images.gog.com), se pasan tal cual
+// y la UI las pinta como cualquier otra imagen de plataforma.
+function parseCover(pieceValue) {
+  if (!pieceValue) return null;
+  try {
+    const img = JSON.parse(pieceValue);
+    return img?.verticalCover || img?.squareIcon || null;
+  } catch {
+    return null;
+  }
+}
+
 // Copia la base (y su -wal/-shm si los hay) a un directorio temporal antes
 // de leerla: Galaxy suele estar abierto y con la base bloqueada, y así
 // además se ven los últimos cambios sin escribir una sola línea en la
@@ -100,7 +115,7 @@ function resolveUserId(db) {
 }
 
 // Lee la biblioteca de GOG de la base de Galaxy y la devuelve ya masticada:
-//   { games: [{ gogId, releaseKey, title, minutes, lastPlayed, achievements }], skipped: [...] }
+//   { games: [{ gogId, releaseKey, title, coverUrl, minutes, lastPlayed, achievements }], skipped: [...] }
 // achievements: [{ apiName, name, description, achieved, unlockedAt }]
 function readGogLibrary({ dbPath = DEFAULT_DB_PATH } = {}) {
   return withGalaxyCopy(dbPath, (db) => {
@@ -119,7 +134,11 @@ function readGogLibrary({ dbPath = DEFAULT_DB_PATH } = {}) {
                    WHERE gp.releaseKey = lr.releaseKey
                      AND gp.gamePieceTypeId = (SELECT id FROM GamePieceTypes WHERE type = 'originalTitle')
                    LIMIT 1)
-              ) AS titleJson
+              ) AS titleJson,
+              (SELECT gp.value FROM GamePieces gp
+                 WHERE gp.releaseKey = lr.releaseKey
+                   AND gp.gamePieceTypeId = (SELECT id FROM GamePieceTypes WHERE type = 'originalImages')
+                 LIMIT 1) AS imagesJson
          FROM LibraryReleases lr
         WHERE lr.releaseKey LIKE 'gog\\_%' ESCAPE '\\'
           AND CAST(lr.userId AS TEXT) = ?`,
@@ -191,6 +210,7 @@ function readGogLibrary({ dbPath = DEFAULT_DB_PATH } = {}) {
         gogId: row.releaseKey.replace(/^gog_/, ''),
         releaseKey: row.releaseKey,
         title,
+        coverUrl: parseCover(row.imagesJson),
         minutes: minutesByKey.get(row.releaseKey) || 0,
         lastPlayed: lastPlayedByKey.get(row.releaseKey) || null,
         achievements: achievementsByKey.get(row.releaseKey) || [],
@@ -205,6 +225,7 @@ function readGogLibrary({ dbPath = DEFAULT_DB_PATH } = {}) {
       }
       // Fusión: la clave con más datos manda como id externo.
       existing.minutes += entry.minutes;
+      if (!existing.coverUrl && entry.coverUrl) existing.coverUrl = entry.coverUrl;
       if (!existing.lastPlayed || (entry.lastPlayed && entry.lastPlayed > existing.lastPlayed)) {
         existing.lastPlayed = entry.lastPlayed;
       }

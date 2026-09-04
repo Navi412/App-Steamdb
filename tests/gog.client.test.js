@@ -24,7 +24,11 @@ function makeGalaxyDb(spec = {}) {
     CREATE TABLE UserAchievements (gameReleaseKey TEXT, userId INTEGER, apikey TEXT, unlockTime TEXT, isUnlocked INTEGER);
     CREATE TABLE LocalizedAchievements (gameReleaseKey TEXT, apikey TEXT, name TEXT, description TEXT, languageId INTEGER, isLocalized INTEGER);
   `);
-  db.prepare('INSERT INTO GamePieceTypes (id, type) VALUES (197, ?), (317, ?)').run('title', 'originalTitle');
+  db.prepare('INSERT INTO GamePieceTypes (id, type) VALUES (197, ?), (317, ?), (314, ?)').run(
+    'title',
+    'originalTitle',
+    'originalImages'
+  );
 
   const user = spec.user ?? USER;
   for (const g of spec.library ?? []) {
@@ -34,6 +38,13 @@ function makeGalaxyDb(spec = {}) {
         g.releaseKey,
         g.user ?? user,
         g.title === null ? null : JSON.stringify({ title: g.title })
+      );
+    }
+    if (g.images !== undefined) {
+      db.prepare('INSERT INTO GamePieces (releaseKey, gamePieceTypeId, userId, value) VALUES (?, 314, ?, ?)').run(
+        g.releaseKey,
+        g.user ?? user,
+        g.images === null ? null : JSON.stringify(g.images)
       );
     }
     if (g.minutes !== undefined) {
@@ -92,6 +103,38 @@ test('devuelve solo los juegos gog del usuario, con horas y última vez jugado',
   const witcher = games.find((g) => g.title.startsWith('The Witcher'));
   assert.equal(witcher.minutes, 0);
   assert.equal(witcher.lastPlayed, null);
+});
+
+test('saca la carátula vertical de originalImages, con el icono cuadrado de reserva', () => {
+  const dbPath = makeGalaxyDb({
+    library: [
+      {
+        releaseKey: 'gog_1',
+        title: 'Cyberpunk 2077',
+        minutes: 1,
+        images: {
+          verticalCover: 'https://images.gog.com/abc_glx_vertical_cover.webp?namespace=gamesdb',
+          squareIcon: 'https://images.gog.com/def_glx_square_icon_v2.webp',
+        },
+      },
+      {
+        releaseKey: 'gog_2',
+        title: 'The Witcher',
+        minutes: 0,
+        images: { verticalCover: null, squareIcon: 'https://images.gog.com/xyz_glx_square_icon_v2.webp' },
+      },
+      { releaseKey: 'gog_3', title: 'Gwent', minutes: 0 }, // sin pieza de imagen
+    ],
+  });
+
+  const { games } = readGogLibrary({ dbPath });
+  const byTitle = Object.fromEntries(games.map((g) => [g.title, g]));
+  assert.equal(
+    byTitle['Cyberpunk 2077'].coverUrl,
+    'https://images.gog.com/abc_glx_vertical_cover.webp?namespace=gamesdb'
+  );
+  assert.equal(byTitle['The Witcher'].coverUrl, 'https://images.gog.com/xyz_glx_square_icon_v2.webp');
+  assert.equal(byTitle['Gwent'].coverUrl, null);
 });
 
 test('los extras sin juego (códigos de descuento) van a "skipped", no a "games"', () => {
@@ -172,7 +215,12 @@ test('dos claves de GOG con el mismo título se funden en un juego', () => {
           { apiName: 'TheLovers', name: 'The Lovers', achieved: false },
         ],
       },
-      { releaseKey: 'gog_2093619782', title: 'Cyberpunk 2077', minutes: 0 },
+      {
+        releaseKey: 'gog_2093619782',
+        title: 'Cyberpunk 2077',
+        minutes: 0,
+        images: { verticalCover: 'https://images.gog.com/cp_glx_vertical_cover.webp' },
+      },
     ],
   });
 
@@ -181,6 +229,8 @@ test('dos claves de GOG con el mismo título se funden en un juego', () => {
   assert.equal(games[0].minutes, 4678);
   assert.equal(games[0].gogId, '1423049311');
   assert.equal(games[0].achievements.length, 2);
+  // la carátula la aporta la otra clave: la fusión no debe perderla
+  assert.equal(games[0].coverUrl, 'https://images.gog.com/cp_glx_vertical_cover.webp');
 });
 
 test('si no existe la base de Galaxy, lanza un error claro', () => {
