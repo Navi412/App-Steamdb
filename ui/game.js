@@ -188,5 +188,30 @@ document.getElementById('igdb-form').addEventListener('submit', async (event) =>
 document.getElementById('cover-file').addEventListener('change', onCoverFileChange);
 document.getElementById('cover-remove').addEventListener('click', onCoverRemove);
 
+document.getElementById('log-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  try {
+    const minutes = Math.round(Number(form.hours.value) * 60);
+    await submitJson(`/api/games/${gameIdFromUrl()}/sessions`, 'POST', {
+      minutes,
+      note: form.note.value || undefined,
+    });
+    form.reset();
+    await loadGame();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+(async () => {
+  try {
+    const { name } = await (await fetch('/api/profile')).json();
+    if (name) document.getElementById('back-link').textContent = `← Biblioteca de ${name}`;
+  } catch {
+    /* el enlace se queda como "← Biblioteca" */
+  }
+})();
+
 loadGame();
 renderTotalHoursBadge();

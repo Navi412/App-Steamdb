@@ -296,3 +296,53 @@ test('PUT /api/games/:id/cover descarga una imagen desde una url', async () => {
     assert.deepEqual(img, pixel);
   }, { fetchImpl });
 });
+
+test('lista de siguientes: POST /api/to-play marca inToPlay, DELETE lo quita', async () => {
+  await withServer(async (base) => {
+    const game = await (await postJson(base, '/api/games', { title: 'Hades', platform: 'PC' })).json();
+
+    let list = await (await fetch(`${base}/api/games`)).json();
+    assert.equal(list[0].inToPlay, false);
+
+    const add = await postJson(base, '/api/to-play', { gameId: game.id });
+    assert.equal(add.status, 200);
+
+    list = await (await fetch(`${base}/api/games`)).json();
+    assert.equal(list[0].inToPlay, true);
+
+    // idempotente: añadir dos veces no falla
+    assert.equal((await postJson(base, '/api/to-play', { gameId: game.id })).status, 200);
+
+    const del = await fetch(`${base}/api/to-play/${game.id}`, { method: 'DELETE' });
+    assert.equal(del.status, 200);
+
+    list = await (await fetch(`${base}/api/games`)).json();
+    assert.equal(list[0].inToPlay, false);
+  });
+});
+
+test('POST /api/to-play con un juego inexistente da 400', async () => {
+  await withServer(async (base) => {
+    assert.equal((await postJson(base, '/api/to-play', { gameId: 9999 })).status, 400);
+  });
+});
+
+test('GET /api/profile: nombre de USER_NAME recortado, o null si no está', async () => {
+  const prev = process.env.USER_NAME;
+  try {
+    process.env.USER_NAME = '  Navi  ';
+    await withServer(async (base) => {
+      const res = await fetch(`${base}/api/profile`);
+      assert.equal(res.status, 200);
+      assert.deepEqual(await res.json(), { name: 'Navi' });
+    });
+
+    delete process.env.USER_NAME;
+    await withServer(async (base) => {
+      assert.deepEqual(await (await fetch(`${base}/api/profile`)).json(), { name: null });
+    });
+  } finally {
+    if (prev === undefined) delete process.env.USER_NAME;
+    else process.env.USER_NAME = prev;
+  }
+});

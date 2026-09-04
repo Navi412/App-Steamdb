@@ -14,6 +14,7 @@ const EXPECTED_TABLES = [
   'games',
   'game_external_ids',
   'game_covers',
+  'to_play_list',
   'playtime_snapshots',
   'play_sessions',
   'sync_anomalies',

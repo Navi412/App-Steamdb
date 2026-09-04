@@ -48,6 +48,14 @@ function createServer({ fetchImpl, epicAuthPath } = {}) {
   registerGameRoutes(router, db, { fetchImpl });
   registerSyncRoutes(router, db, { fetchImpl, epicAuthPath });
 
+  // Nombre para personalizar el título ("Biblioteca de <nombre>"). Sale de
+  // USER_NAME en el .env; si no está, la UI usa un título genérico.
+  router.get('/api/profile', (req, res) => {
+    const name = (process.env.USER_NAME || '').trim();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ name: name || null }));
+  });
+
   return http.createServer(async (req, res) => {
     if (req.url === '/health' && req.method === 'GET') {
       const dbOk = db.prepare('SELECT 1 AS ok').get().ok === 1;

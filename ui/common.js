@@ -35,7 +35,7 @@ function coverHtml(game, { size = '' } = {}) {
 
   // Carátula subida por el usuario: manda sobre el arte de Steam/Xbox.
   if (game.coverUrl) {
-    return `<span class="cover${sizeClass}"><img src="${escapeHtml(game.coverUrl)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('cover-fallback')"></span>`;
+    return `<span class="cover${sizeClass}"><img src="${escapeHtml(game.coverUrl)}" alt="" loading="lazy" draggable="false" onerror="this.parentElement.classList.add('cover-fallback')"></span>`;
   }
 
   let primary = null;
@@ -53,7 +53,7 @@ function coverHtml(game, { size = '' } = {}) {
   const onError = fallback
     ? `if(this.dataset.f){this.parentElement.classList.add('cover-fallback')}else{this.dataset.f=1;this.src='${fallback}'}`
     : `this.parentElement.classList.add('cover-fallback')`;
-  return `<span class="cover${sizeClass}"><img src="${primary}" alt="" loading="lazy" onerror="${onError}"></span>`;
+  return `<span class="cover${sizeClass}"><img src="${primary}" alt="" loading="lazy" draggable="false" onerror="${onError}"></span>`;
 }
 
 // El marcador de horas totales vive en ambas páginas (lista y detalle). La

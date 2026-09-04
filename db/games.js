@@ -14,6 +14,7 @@ function rowToGame(row) {
     coverUrl: row.cover_updated_at
       ? `/api/games/${row.id}/cover?v=${Date.parse(row.cover_updated_at)}`
       : null,
+    inToPlay: Boolean(row.in_to_play),
     createdAt: row.created_at,
     missingSince: row.missing_since,
     archived: Boolean(row.archived),
@@ -37,6 +38,7 @@ const SELECT_WITH_STATS = `
   SELECT g.*,
     (SELECT external_id FROM game_external_ids e WHERE e.game_id = g.id AND e.source = 'steam') AS steam_appid,
     (SELECT updated_at FROM game_covers c WHERE c.game_id = g.id) AS cover_updated_at,
+    (SELECT 1 FROM to_play_list t WHERE t.game_id = g.id) AS in_to_play,
     (SELECT COALESCE(SUM(minutes), 0) FROM play_sessions s WHERE s.game_id = g.id) AS total_minutes,
     (SELECT COUNT(*) FROM achievements a WHERE a.game_id = g.id) AS achievements_total,
     (SELECT COUNT(*) FROM achievements a WHERE a.game_id = g.id AND a.achieved = 1) AS achievements_unlocked

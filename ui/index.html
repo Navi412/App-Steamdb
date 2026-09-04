@@ -6,11 +6,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="page-list">
   <div id="total-hours-badge" class="total-badge"></div>
 
-  <h1>SteamDB</h1>
-  <p>Estado del servidor: <span id="status">comprobando...</span></p>
+  <header class="lib-header">
+    <p class="lib-kicker">SteamDB</p>
+    <h1 id="library-title">Biblioteca</h1>
+    <p class="lib-status">Servidor: <span id="status">comprobando…</span></p>
+  </header>
 
   <section>
     <h2>Añadir juego manual</h2>
@@ -27,10 +30,21 @@
   </section>
 
   <section>
-    <div class="section-header">
-      <h2>Mis juegos</h2>
-      <button id="sync-button" type="button">Sincronizar</button>
+    <div class="tabs">
+      <div class="tabs-list">
+        <button class="tab is-active" data-tab="all" type="button">Mis juegos</button>
+        <button class="tab" data-tab="toplay" type="button">
+          Lista de siguientes <span class="tab-count" id="toplay-count">0</span>
+        </button>
+      </div>
+      <div class="tabs-actions">
+        <button id="roulette-button" type="button" hidden>
+          <span class="roulette-icon" aria-hidden="true">◉</span> Ruleta
+        </button>
+        <button id="sync-button" type="button">Sincronizar</button>
+      </div>
     </div>
+
     <div class="filter-bar">
       <input id="search-input" type="search" placeholder="Buscar un juego..." class="search-box">
       <select id="platform-filter" class="filter-select">
@@ -42,8 +56,43 @@
         <option value="least">Orden: menos jugadas</option>
       </select>
     </div>
-    <ul id="games-list"></ul>
+    <ul id="games-list" class="shelf"></ul>
   </section>
+
+  <!-- Zona que aparece a la izquierda mientras arrastras un juego -->
+  <div id="drop-next" class="drop-next">
+    <div class="drop-next-inner">
+      <span class="drop-next-icon">＋</span>
+      <span class="drop-next-label">Lista de siguientes</span>
+      <span class="drop-next-hint">suelta el juego aquí</span>
+    </div>
+  </div>
+
+  <!-- Ruleta para elegir el próximo juego -->
+  <div id="roulette-modal" class="modal" hidden>
+    <div class="modal-box">
+      <button class="modal-close" id="roulette-close" type="button" aria-label="Cerrar">×</button>
+      <h2>¿A qué juego jugamos?</h2>
+      <div class="wheel-stage">
+        <div class="wheel-wrap">
+          <div class="wheel-tick" aria-hidden="true"></div>
+          <div class="wheel" id="wheel"></div>
+          <div class="wheel-center" aria-hidden="true"></div>
+          <div class="tonearm" aria-hidden="true">
+            <span class="tonearm-tube"></span>
+            <span class="tonearm-head"></span>
+            <span class="tonearm-weight"></span>
+            <span class="tonearm-pivot"></span>
+          </div>
+        </div>
+      </div>
+      <p class="wheel-result" id="wheel-result">Gira la ruleta…</p>
+      <div class="wheel-actions">
+        <button id="wheel-spin" type="button">Girar</button>
+        <a id="wheel-go" href="#" hidden>Abrir ficha →</a>
+      </div>
+    </div>
+  </div>
 
   <script src="/common.js"></script>
   <script src="/app.js"></script>

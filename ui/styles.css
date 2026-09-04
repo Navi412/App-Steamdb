@@ -61,6 +61,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* La lista de juegos es una estantería: aprovecha el ancho (16:9), no una
+   columna estrecha. El detalle sí se queda angosto para leer bien. */
+body.page-list {
+  max-width: min(1680px, 95vw);
+  margin-top: 2rem;
+}
+
 h1 {
   font-size: 2rem;
   font-weight: 700;
@@ -80,6 +87,23 @@ h2 {
   color: var(--accent);
   margin: 0 0 1.1rem;
 }
+
+/* --- cabecera personalizada de la biblioteca --- */
+.lib-header { margin-bottom: 1.8rem; }
+.lib-kicker {
+  margin: 0 0 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+body.page-list h1 {
+  font-size: clamp(2rem, 3.4vw, 2.9rem);
+  line-height: 1.08;
+  margin: 0;
+}
+.lib-status { margin: 0.55rem 0 0; font-size: 0.88rem; color: var(--text-muted); }
 
 .section-header {
   display: flex;
@@ -171,6 +195,67 @@ ul { list-style: none; padding: 0; margin: 0; }
 }
 .filter-bar .search-box { flex: 1 1 12rem; }
 
+/* --- pestañas: Mis juegos / Lista de siguientes --- */
+.tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+}
+.tabs-actions { display: flex; gap: 0.5rem; }
+
+/* Control segmentado: se lee claramente como "elige una vista" */
+.tabs-list {
+  display: flex;
+  border: 1px solid var(--stroke-strong);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.22);
+}
+.tab {
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 0.7rem 1.4rem;
+  border: 0;
+  border-right: 1px solid var(--stroke);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.16s var(--ease), background 0.16s var(--ease);
+}
+.tab:last-child { border-right: 0; }
+.tab, .tab:hover, .tab:active { transform: none; box-shadow: none; }
+.tab:not(.is-active):hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+.tab.is-active, .tab.is-active:hover {
+  color: #06101f;
+  background: var(--accent);
+}
+.tab-count {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0 0.4em;
+  margin-left: 0.45em;
+  font-size: 0.74em;
+  text-align: center;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.22);
+}
+.tab.is-active .tab-count { background: rgba(0, 0, 0, 0.18); }
+
+#roulette-button {
+  background: linear-gradient(180deg, rgba(255, 211, 122, 0.24), rgba(255, 139, 160, 0.16));
+  border-color: rgba(255, 211, 122, 0.4);
+}
+#roulette-button:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(255, 211, 122, 0.34), rgba(255, 139, 160, 0.22));
+  border-color: rgba(255, 211, 122, 0.6);
+}
+.roulette-icon { font-size: 1em; }
+
 /* --- botones de cristal, con elevación al pasar el ratón --- */
 button {
   font: inherit;
@@ -236,33 +321,275 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 .cover-msg { font-size: 0.85rem; color: var(--text-muted); }
 
-/* --- lista de juegos --- */
-li.game {
+/* --- estantería de juegos: cajas físicas en una rejilla --- */
+.shelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  gap: 2.2rem 1.3rem;
+  perspective: 1600px;
+  padding-top: 0.4rem;
+}
+.shelf .empty { grid-column: 1 / -1; }
+
+.case-slot {
+  list-style: none;
+  position: relative;
+  aspect-ratio: 3 / 4;
+  animation: case-in 0.42s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 22ms);
+  transition: opacity 0.2s var(--ease);
+}
+/* Al pasar el ratón la caja crece fuera de su hueco y pasa por delante. */
+.case-slot:hover { z-index: 20; }
+.case-slot.archived { opacity: 0.4; filter: grayscale(0.5); }
+
+@keyframes case-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* La caja: estuche de plástico, borde marcado. Rellena su hueco y al
+   pasar el ratón se agranda de verdad (cambia de tamaño, no un zoom con
+   scale), así el arte se re-dibuja nítido a mayor tamaño. */
+.case {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: 4px 13px 13px 4px;
+  overflow: hidden;
+  background: #05070d;
+  border: 1px solid rgba(0, 0, 0, 0.85);
+  transform-origin: bottom center;
+  transition: inset 0.26s var(--ease), transform 0.26s var(--ease),
+    box-shadow 0.26s var(--ease), filter 0.26s var(--ease);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    inset -10px 0 16px -10px rgba(0, 0, 0, 0.85),
+    0 3px 0 rgba(0, 0, 0, 0.5),
+    0 16px 26px -12px rgba(0, 0, 0, 0.8);
+}
+
+/* Marco de plástico del estuche: reborde brillante + sombra interior */
+.case::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 0 0 4px rgba(0, 0, 0, 0.42),
+    inset 0 -28px 34px -24px rgba(0, 0, 0, 0.78);
+}
+
+.case-art { position: absolute; inset: 0; }
+.case-art .cover.cover-case {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: #0a0e1a;
+}
+.case-art .cover.cover-case.cover-fallback::after { font-size: 2rem; }
+
+/* Textura VHS: líneas de barrido muy sutiles sobre el arte */
+.case-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.4) 0 1px, transparent 1px 3px);
+  opacity: 0.22;
+  transition: opacity 0.28s var(--ease);
+}
+
+/* Lomo del estuche a la izquierda: pliegue marcado */
+.case-spine {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 2;
+  width: 15px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(255, 255, 255, 0.18) 34%,
+    rgba(0, 0, 0, 0.5) 55%,
+    rgba(255, 255, 255, 0.1) 78%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  box-shadow:
+    inset -1px 0 0 rgba(0, 0, 0, 0.6),
+    2px 0 5px rgba(0, 0, 0, 0.5);
+}
+
+/* Brillo de plástico que cruza la caja y se desplaza al pasar el ratón */
+.case-gloss {
+  position: absolute;
+  inset: -40% -60%;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.16) 48%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(255, 255, 255, 0.05) 54%,
+    transparent 64%
+  );
+  transform: translateX(-30%);
+  opacity: 0.45;
+  transition: transform 0.5s var(--ease), opacity 0.5s var(--ease);
+}
+
+/* Etiqueta inferior permanente con el título */
+.case-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 2rem 0.7rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.82));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: opacity 0.22s var(--ease);
+}
+
+/* Aviso "fuera de Steam" como pegatina en esquina */
+.case-flag {
+  position: absolute;
+  z-index: 3;
+  top: 0.55rem;
+  right: -2.4rem;
+  transform: rotate(35deg);
+  background: var(--danger);
+  color: #2a0410;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 2.6rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Marca "está en tu lista de siguientes" */
+.case-next {
+  position: absolute;
+  z-index: 3;
+  top: 0.5rem;
+  left: 0.5rem;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.9rem 1rem;
-  margin-bottom: 0.7rem;
-  background: var(--glass);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius-sm);
-  flex-wrap: wrap;
-  transition: transform 0.18s var(--ease), background 0.18s var(--ease),
-    border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #06101f;
+  background: var(--accent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
-li.game:last-child { margin-bottom: 0; }
-li.game:hover {
-  transform: translateY(-2px);
-  background: var(--glass-hover);
-  border-color: var(--stroke-strong);
-  box-shadow: var(--shadow);
-}
-li.game.archived { opacity: 0.45; }
-li.game .title { font-weight: 600; flex: 1 0 auto; }
-li.game .title a { color: var(--text); }
-li.game .title a:hover { color: var(--accent); text-decoration: none; }
 
-/* --- carátulas (formato caja ~3:4), se elevan al pasar el ratón --- */
+/* Botón para quitar de la lista (solo en la pestaña de siguientes) */
+.case-remove {
+  position: absolute;
+  z-index: 6;
+  top: -9px;
+  right: -9px;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: #2a0410;
+  background: var(--danger);
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+}
+.case-slot:hover .case-remove { opacity: 1; }
+.case-slot .case-remove:hover {
+  transform: scale(1.12);
+  background: var(--danger);
+  border-color: rgba(0, 0, 0, 0.45);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Panel que sube al pasar el ratón: horas, logros, info básica */
+.case-info {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.85rem 0.75rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: linear-gradient(transparent, rgba(5, 7, 13, 0.88) 20%, rgba(5, 7, 13, 0.97));
+  transform: translateY(101%);
+  transition: transform 0.28s var(--ease);
+}
+.case-info-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.case-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.chip {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  white-space: nowrap;
+}
+.chip.total { color: var(--accent); border-color: rgba(124, 196, 255, 0.4); }
+.chip.ach { color: var(--gold); border-color: rgba(255, 211, 122, 0.4); }
+.chip.igdb { color: var(--accent-2); border-color: rgba(169, 150, 255, 0.4); }
+.chip.plat { color: var(--text-muted); }
+.case-cta { font-size: 0.72rem; font-weight: 600; color: var(--accent); }
+
+/* Hover: la caja se separa de la estantería, el resto se atenúa */
+.shelf:hover .case-slot:not(:hover) { opacity: 0.6; }
+.case:hover {
+  inset: -20px -18px -30px -18px;
+  transform: translateY(-4px) perspective(1200px) rotateX(4deg);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.18),
+    inset -12px 0 20px -12px rgba(0, 0, 0, 0.85),
+    0 3px 0 rgba(0, 0, 0, 0.5),
+    0 38px 55px -16px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(124, 196, 255, 0.45),
+    0 0 26px -2px rgba(124, 196, 255, 0.32);
+}
+.case:hover .case-info { transform: translateY(0); }
+.case:hover .case-label { opacity: 0; }
+.case:hover .case-gloss { transform: translateX(35%); opacity: 0.8; }
+.case:hover .case-art::after { opacity: 0.22; }
+.case:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* --- carátula del detalle (formato caja ~3:4) --- */
 .cover {
   flex: 0 0 auto;
   width: 3rem;
@@ -281,22 +608,16 @@ li.game .title a:hover { color: var(--accent); text-decoration: none; }
   background: linear-gradient(140deg, rgba(124, 196, 255, 0.12), rgba(169, 150, 255, 0.12));
 }
 .cover.cover-fallback img { display: none; }
-.cover.cover-fallback::after {
-  content: '🎮';
-  font-size: 1.1rem;
-  opacity: 0.5;
-}
-.cover.cover-lg { width: 8rem; height: 10.7rem; border-radius: 14px; }
+.cover.cover-fallback::after { content: '🎮'; font-size: 1.1rem; opacity: 0.5; }
+.cover.cover-lg { width: 9rem; height: 12rem; border-radius: 14px; }
 .cover.cover-lg.cover-fallback::after { font-size: 2.4rem; }
-
-li.game:hover .cover,
 .cover.cover-lg:hover {
   transform: translateY(-4px) scale(1.03);
   box-shadow: 0 18px 32px -12px rgba(0, 0, 0, 0.7);
 }
 
-/* --- chips (plataforma, logros, igdb, precisión, avisos) --- */
-.platform, li.game .achievements, li.game .igdb, .precision, .badge {
+/* --- chips compartidos con el detalle --- */
+.platform, .precision, .badge {
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -305,33 +626,27 @@ li.game:hover .cover,
   border-radius: 999px;
   padding: 0.28rem 0.65rem;
   white-space: nowrap;
-  transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
 }
-
 .platforms { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .platform { color: var(--text-muted); }
 a.platform:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
-li.game .achievements, .unlocked-at {
+.unlocked-at {
   color: var(--gold);
-  border-color: rgba(255, 211, 122, 0.4);
+  border: 1px solid rgba(255, 211, 122, 0.4);
   background: rgba(255, 211, 122, 0.08);
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
-li.game .igdb { color: var(--accent); border-color: rgba(124, 196, 255, 0.4); }
 .badge {
   color: var(--danger);
   border-color: rgba(255, 139, 160, 0.45);
   background: rgba(255, 139, 160, 0.09);
 }
 
-li.game .total {
-  font-variant-numeric: tabular-nums;
-  color: var(--accent);
-  font-weight: 600;
-  font-size: 0.98rem;
-}
-
-form.log-session { display: flex; gap: 0.45rem; margin-left: auto; }
-form.log-session input { width: 6rem; }
+.log-form { margin-bottom: 1.1rem; }
+.log-form input[name='note'] { flex: 1 1 12rem; }
 
 /* --- página de detalle --- */
 .game-header { display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; }
@@ -393,9 +708,373 @@ li.achievement .unlocked-at { margin-left: auto; font-size: 0.72rem; }
 
 .empty { color: var(--text-muted); font-style: italic; }
 
+/* --- zona de arrastre "Lista de siguientes" (entra desde la izquierda) --- */
+.drop-next {
+  position: fixed;
+  left: 0;
+  top: 8vh;
+  bottom: 8vh;
+  z-index: 50;
+  width: min(340px, 62vw);
+  display: flex;
+  padding: 1.4rem;
+  border-radius: 0 22px 22px 0;
+  background: rgba(10, 14, 26, 0.95);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid var(--stroke-strong);
+  border-left: 0;
+  box-shadow: var(--shadow);
+  transform: translateX(-100%);
+  transition: transform 0.3s var(--ease), background 0.18s var(--ease),
+    border-color 0.18s var(--ease);
+}
+.drop-next.show { transform: translateX(0); }
+.drop-next.is-over {
+  background: rgba(124, 196, 255, 0.18);
+  border-color: var(--accent);
+}
+.drop-next-inner {
+  pointer-events: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  text-align: center;
+  padding: 2rem 1.4rem;
+  border: 3px dashed var(--stroke-strong);
+  border-radius: 20px;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease);
+}
+.drop-next.is-over .drop-next-inner {
+  border-color: var(--accent);
+  background: rgba(124, 196, 255, 0.08);
+}
+.drop-next-icon {
+  font-size: 3rem;
+  color: var(--accent);
+  line-height: 1;
+}
+.drop-next-label { font-weight: 700; font-size: 1.25rem; }
+.drop-next-hint { font-size: 0.95rem; color: var(--text-muted); }
+
+/* --- modal genérico + ruleta --- */
+.modal[hidden] { display: none; }
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  overflow: auto;
+  background: rgba(3, 5, 10, 0.74);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.modal-box {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  padding: 2rem 2.2rem 2.2rem;
+  text-align: center;
+  background: var(--bg);
+  border: 1px solid var(--stroke-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.modal-box h2 {
+  color: var(--text);
+  font-size: 1.4rem;
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0 0 1.4rem;
+}
+.modal-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--stroke);
+  box-shadow: none;
+  cursor: pointer;
+}
+.modal-box .modal-close:hover {
+  color: var(--text);
+  transform: none;
+  background: transparent;
+  border-color: var(--stroke-strong);
+  box-shadow: none;
+}
+
+/* Tocadiscos: bandeja (plinto) + plato metálico + vinilo girando + brazo.
+   Se dibuja a 300px y se escala en bloque para verlo más grande. */
+.wheel-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 540px;
+  margin: 0 auto 1.2rem;
+}
+.wheel-stage .wheel-wrap {
+  margin: 0;
+  transform: scale(1.4);
+}
+.wheel-wrap {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  margin: 3rem auto 3.2rem;
+}
+/* plinto de madera (la caja del tocadiscos) */
+.wheel-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -32px -38px -42px -34px;
+  border-radius: 20px;
+  background:
+    repeating-linear-gradient(3deg,
+      rgba(0, 0, 0, 0.16) 0 1px, rgba(0, 0, 0, 0) 1px 6px,
+      rgba(255, 255, 255, 0.04) 6px 8px, rgba(0, 0, 0, 0) 8px 15px),
+    repeating-linear-gradient(2deg,
+      rgba(0, 0, 0, 0.08) 0 18px, rgba(255, 255, 255, 0.03) 18px 40px),
+    linear-gradient(155deg, #8a5c37 0%, #6b4529 46%, #4c3019 100%);
+  box-shadow:
+    0 28px 52px -18px rgba(0, 0, 0, 0.8),
+    inset 0 2px 0 rgba(255, 220, 180, 0.12),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+    inset 0 0 34px rgba(0, 0, 0, 0.35);
+  z-index: 0;
+}
+/* borde del plato metálico que asoma bajo el vinilo */
+.wheel-wrap::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #4b4c53, #202126, #52535a, #202126, #4b4c53, #202126, #4b4c53);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.5);
+  z-index: 0;
+}
+/* La ruleta es un vinilo: disco negro con surcos concéntricos y un brillo
+   que gira con él. Los nombres van en un anillo, siempre en horizontal. */
+.wheel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background:
+    conic-gradient(from 0deg,
+      rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 20%,
+      rgba(255, 255, 255, 0.04) 45%, rgba(255, 255, 255, 0) 66%,
+      rgba(255, 255, 255, 0.11) 87%, rgba(255, 255, 255, 0) 100%),
+    repeating-radial-gradient(circle at 50% 50%,
+      rgba(255, 255, 255, 0.045) 0 1px, rgba(0, 0, 0, 0) 1px 4px),
+    radial-gradient(circle at 37% 30%, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 40%),
+    radial-gradient(circle at 50% 50%, #1b1b21 0%, #0c0c10 58%, #050506 100%);
+  border: 3px solid rgba(0, 0, 0, 0.75);
+  box-shadow:
+    0 16px 42px -12px rgba(0, 0, 0, 0.72),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.05),
+    inset 0 0 46px rgba(0, 0, 0, 0.65);
+  transition: transform 4.6s cubic-bezier(0.12, 0.85, 0.18, 1);
+  will-change: transform;
+}
+.wheel-sep {
+  position: absolute;
+  left: 50%;
+  top: 4%;
+  width: 1px;
+  height: 46%;
+  margin-left: -0.5px;
+  transform-origin: 50% 100%;
+  background: linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.03));
+  pointer-events: none;
+}
+/* Nombres curvados sobre el disco (SVG), mirando hacia el centro */
+.wheel-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.wheel-svg text {
+  fill: #f4f6fd;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.9);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+}
+.wheel.dense .wheel-svg { display: none; }
+
+/* Marca fina donde la aguja toca el disco (3 en punto) = el ganador */
+.wheel-tick {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  z-index: 4;
+  width: 0;
+  height: 0;
+  transform: translateY(-50%);
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 12px solid rgba(255, 255, 255, 0.92);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+}
+
+/* Brazo del tocadiscos: se ancla a las 3 en punto (rota todo el conjunto
+   90°), así la aguja siempre coincide con la marca y el sector ganador. */
+.tonearm {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  transform: rotate(90deg);
+  pointer-events: none;
+  filter: drop-shadow(-4px 8px 6px rgba(0, 0, 0, 0.45));
+}
+.tonearm-pivot {
+  position: absolute;
+  left: 50%;
+  top: -46px;
+  width: 32px;
+  height: 32px;
+  margin-left: -16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #f1f2f6, #b3b6bd 46%, #5b5d66 78%, #3a3b42 100%);
+  box-shadow: 0 5px 13px rgba(0, 0, 0, 0.62), inset 0 0 0 5px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 6px rgba(255, 255, 255, 0.14);
+}
+/* contrapeso trasero del brazo */
+.tonearm-weight {
+  position: absolute;
+  left: 50%;
+  top: -76px;
+  width: 22px;
+  height: 26px;
+  margin-left: -11px;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #24252b, #45464e 46%, #17181c);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+.tonearm-tube {
+  position: absolute;
+  left: 50%;
+  top: -40px;
+  width: 6px;
+  height: 44px;
+  margin-left: -3px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #34363d 0%, #eceff4 36%, #a9afb9 54%, #5a5c65 78%, #2f3037 100%);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55);
+}
+.tonearm-head {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 22px;
+  height: 26px;
+  margin-left: -11px;
+  border-radius: 3px 3px 7px 7px;
+  background: linear-gradient(158deg, #3c3d45 0%, #202127 55%, #131418 100%);
+  box-shadow: 0 4px 9px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+/* aguja (stylus) metálica, sin brillos raros */
+.tonearm-head::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 3px;
+  height: 9px;
+  transform: translateX(-50%);
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(#cbced5, #71747d 58%, #3a3b42);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.wheel-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 88px;
+  height: 88px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    repeating-radial-gradient(circle at 50% 50%,
+      rgba(0, 0, 0, 0.12) 0 1px, rgba(0, 0, 0, 0) 1px 5px),
+    radial-gradient(circle at 40% 34%, #b6dbff, var(--accent) 44%, #3670ad 100%);
+  border: 3px solid rgba(0, 0, 0, 0.6);
+  box-shadow:
+    0 3px 12px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 4px rgba(255, 255, 255, 0.18),
+    inset 0 0 0 6px rgba(0, 0, 0, 0.22);
+}
+.wheel-center::after {
+  content: '';
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #050506;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 0 3px rgba(255, 255, 255, 0.22),
+    0 0 0 4px rgba(0, 0, 0, 0.5);
+}
+.wheel-result {
+  min-height: 1.5em;
+  margin: 0 0 1.3rem;
+  color: var(--text);
+  font-size: 1.15rem;
+}
+.wheel-result strong { color: var(--accent); }
+.wheel-actions {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  justify-content: center;
+}
+#wheel-spin {
+  font-size: 0.95rem;
+  padding: 0.8rem 1.5rem;
+}
+#wheel-go {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid rgba(124, 196, 255, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 0.8rem 1.4rem;
+}
+#wheel-go:hover { text-decoration: none; background: rgba(124, 196, 255, 0.12); }
+
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; }
-  li.game:hover, li.session:hover, li.achievement:hover,
-  li.game:hover .cover, .cover.cover-lg:hover,
+  * { transition: none !important; animation-duration: 0.001ms !important; }
+  li.session:hover, li.achievement:hover, .cover.cover-lg:hover,
   button:hover:not(:disabled), .file-btn:hover { transform: none; }
+  .case:hover {
+    inset: 0;
+    transform: none;
+    box-shadow: 0 0 0 1px rgba(124, 196, 255, 0.5), 0 0 20px -4px rgba(124, 196, 255, 0.35);
+  }
+  .case:hover .case-info { transform: translateY(0); }
 }

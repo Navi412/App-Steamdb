@@ -11,6 +11,7 @@ const { pickBestMatch } = require('../../core/igdb');
 const { groupGames } = require('../../core/group-games');
 const gamesDb = require('../../db/games');
 const coversDb = require('../../db/covers');
+const toPlayDb = require('../../db/to-play');
 const sessionsDb = require('../../db/sessions');
 const achievementsDb = require('../../db/achievements');
 const igdbClient = require('../../igdb/client');
@@ -126,6 +127,27 @@ function registerGameRoutes(router, db, { fetchImpl } = {}) {
 
     coversDb.clearCover(db, game.id);
     sendJson(res, 200, gamesDb.getGameById(db, game.id));
+  });
+
+  // --- lista de "siguientes juegos por jugar" ---
+
+  router.post('/api/to-play', async (req, res) => {
+    try {
+      const { gameId } = await readJsonBody(req);
+      const id = Number(gameId);
+      if (!Number.isInteger(id) || !gamesDb.getGameById(db, id)) {
+        return sendJson(res, 400, { error: 'juego no encontrado' });
+      }
+      toPlayDb.add(db, id);
+      sendJson(res, 200, { ok: true });
+    } catch (err) {
+      sendJson(res, 400, { error: err.message });
+    }
+  });
+
+  router.delete('/api/to-play/:gameId', (req, res, params) => {
+    toPlayDb.remove(db, Number(params.gameId));
+    sendJson(res, 200, { ok: true });
   });
 
   router.get('/api/games/:id/sessions', (req, res, params) => {

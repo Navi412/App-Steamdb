@@ -9,7 +9,7 @@
 <body>
   <div id="total-hours-badge" class="total-badge"></div>
 
-  <a class="back-link" href="/">← Mis juegos</a>
+  <a class="back-link" href="/" id="back-link">← Biblioteca</a>
 
   <section class="header-card">
     <div id="game-header" class="game-header"></div>
@@ -41,6 +41,11 @@
 
   <section>
     <h2>Historial de sesiones</h2>
+    <form id="log-form" class="inline log-form">
+      <input name="hours" type="number" min="0.25" step="0.25" placeholder="Horas jugadas" required>
+      <input name="note" type="text" placeholder="Nota (opcional)">
+      <button type="submit">Registrar sesión</button>
+    </form>
     <ul id="sessions-list"></ul>
   </section>
 
