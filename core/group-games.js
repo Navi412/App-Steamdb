@@ -57,6 +57,10 @@ function mergeGroup(rows) {
   // sobre todo (coverHtml le da prioridad).
   const coverRow = rows.find((r) => r.coverUrl) || null;
 
+  // El encuadre acompaña a la fila cuya arte se acaba mostrando: la carátula
+  // subida a mano si la hay, si no la de Steam, si no la principal.
+  const artRow = coverRow || steamRow || primary;
+
   const sum = (field) => rows.reduce((acc, r) => acc + (r[field] ?? 0), 0);
 
   return {
@@ -71,6 +75,8 @@ function mergeGroup(rows) {
     achievementsUnlocked: sum('achievementsUnlocked'),
     steamAppId: steamRow ? steamRow.steamAppId : null,
     coverUrl: coverRow ? coverRow.coverUrl : null,
+    coverPosX: artRow.coverPosX ?? 50,
+    coverPosY: artRow.coverPosY ?? 50,
     iconUrl: steamRow ? steamRow.iconUrl : firstDefined(rows, 'iconUrl'),
     igdbId: igdbRow ? igdbRow.igdbId : firstDefined(rows, 'igdbId'),
     igdbMainMinutes: igdbRow ? igdbRow.igdbMainMinutes : null,

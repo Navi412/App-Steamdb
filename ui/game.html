@@ -5,11 +5,26 @@
 <title>SteamDB — detalle</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/styles.css">
+<script>
+  // Aplica el tema guardado antes del primer pintado, para evitar el
+  // parpadeo del tema por defecto seguido de un salto al elegido.
+  (function () {
+    try {
+      var theme = localStorage.getItem('sdb-theme');
+      if (theme) document.documentElement.dataset.theme = theme;
+      var bg = localStorage.getItem('sdb-bg-image');
+      if (bg) {
+        document.documentElement.style.setProperty('--bg-image', 'url(' + JSON.stringify(bg) + ')');
+        document.documentElement.classList.add('has-bg-image');
+      }
+    } catch {}
+  })();
+</script>
 </head>
 <body>
   <div id="total-hours-badge" class="total-badge"></div>
 
-  <a class="back-link" href="/" id="back-link">← Biblioteca</a>
+  <a class="back-link" href="/" id="back-link"><span aria-hidden="true">←</span> Biblioteca</a>
 
   <section class="header-card">
     <div id="game-header" class="game-header"></div>
@@ -21,6 +36,14 @@
       </label>
       <button type="button" id="cover-remove" hidden>Quitar carátula</button>
       <span id="cover-msg" class="cover-msg" role="status"></span>
+    </div>
+
+    <div class="cover-frame" id="cover-frame" hidden>
+      <span class="cover-frame-title">Encuadre de la carátula</span>
+      <label>Horizontal <input type="range" id="cover-pos-x" min="0" max="100" step="1" value="50"></label>
+      <label>Vertical <input type="range" id="cover-pos-y" min="0" max="100" step="1" value="50"></label>
+      <button type="button" id="cover-frame-reset">Centrar</button>
+      <button type="button" id="cover-frame-save" disabled>Guardar encuadre</button>
     </div>
 
     <div id="game-stats" class="stats"></div>

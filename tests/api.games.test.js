@@ -118,6 +118,29 @@ test('PATCH /api/games/:id archiva un juego', async () => {
   });
 });
 
+test('PATCH /api/games/:id guarda el encuadre de la carátula y sale en la lista', async () => {
+  await withServer(async (base) => {
+    const game = await (await postJson(base, '/api/games', { title: 'Amnesia', platform: 'PC' })).json();
+    assert.equal(game.coverPosX, 50);
+    assert.equal(game.coverPosY, 50);
+
+    const patchRes = await fetch(`${base}/api/games/${game.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coverPosX: 12.7, coverPosY: 90 }),
+    });
+    assert.equal(patchRes.status, 200);
+    const updated = await patchRes.json();
+    assert.equal(updated.coverPosX, 13);
+    assert.equal(updated.coverPosY, 90);
+
+    const list = await (await fetch(`${base}/api/games`)).json();
+    const amnesia = list.find((g) => g.title === 'Amnesia');
+    assert.equal(amnesia.coverPosX, 13);
+    assert.equal(amnesia.coverPosY, 90);
+  });
+});
+
 function withTwitchEnv(clientId, clientSecret, fn) {
   const prevId = process.env.TWITCH_CLIENT_ID;
   const prevSecret = process.env.TWITCH_CLIENT_SECRET;

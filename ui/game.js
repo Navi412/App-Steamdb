@@ -33,8 +33,66 @@ function renderIgdb(game) {
   form.completionistHours.value = game.igdbCompletionistMinutes ? (game.igdbCompletionistMinutes / 60).toFixed(2) : '';
 }
 
+// Último encuadre confirmado con "Guardar encuadre". Sirve para saber si las
+// barras tienen cambios sin guardar y así habilitar/deshabilitar el botón.
+let savedCoverPos = { x: 50, y: 50 };
+
+function coverPosEls() {
+  return {
+    x: document.getElementById('cover-pos-x'),
+    y: document.getElementById('cover-pos-y'),
+    save: document.getElementById('cover-frame-save'),
+  };
+}
+
+function refreshCoverSaveState() {
+  const { x, y, save } = coverPosEls();
+  save.disabled = Number(x.value) === savedCoverPos.x && Number(y.value) === savedCoverPos.y;
+}
+
 function renderCoverEdit(game) {
   document.getElementById('cover-remove').hidden = !game.coverUrl;
+
+  // El encuadre solo tiene sentido si hay una imagen que recortar; un juego
+  // manual sin carátula muestra el hueco de reserva y no hay nada que mover.
+  const frame = document.getElementById('cover-frame');
+  const img = document.querySelector('#game-header .cover img');
+  frame.hidden = !img;
+  if (!img) return;
+
+  const { x, y } = coverPosEls();
+  x.value = game.coverPosX ?? 50;
+  y.value = game.coverPosY ?? 50;
+  savedCoverPos = { x: Number(x.value), y: Number(y.value) };
+  refreshCoverSaveState();
+}
+
+// Mueve en vivo la carátula grande de la ficha con lo que marcan las barras.
+// No guarda nada: eso lo hace el botón "Guardar encuadre".
+function applyCoverPos() {
+  const img = document.querySelector('#game-header .cover img');
+  if (!img) return;
+  const { x, y } = coverPosEls();
+  img.style.objectPosition = `${x.value}% ${y.value}%`;
+}
+
+async function saveCoverPos() {
+  const msg = document.getElementById('cover-msg');
+  const { x, y } = coverPosEls();
+  try {
+    await submitJson(`/api/games/${gameIdFromUrl()}`, 'PATCH', {
+      coverPosX: Number(x.value),
+      coverPosY: Number(y.value),
+    });
+    savedCoverPos = { x: Number(x.value), y: Number(y.value) };
+    refreshCoverSaveState();
+    msg.textContent = 'Encuadre guardado';
+    setTimeout(() => {
+      if (msg.textContent === 'Encuadre guardado') msg.textContent = '';
+    }, 2000);
+  } catch (err) {
+    msg.textContent = err.message;
+  }
 }
 
 async function onCoverFileChange(event) {
@@ -187,6 +245,22 @@ document.getElementById('igdb-form').addEventListener('submit', async (event) =>
 
 document.getElementById('cover-file').addEventListener('change', onCoverFileChange);
 document.getElementById('cover-remove').addEventListener('click', onCoverRemove);
+
+for (const axis of ['cover-pos-x', 'cover-pos-y']) {
+  const slider = document.getElementById(axis);
+  slider.addEventListener('input', () => {
+    applyCoverPos();
+    refreshCoverSaveState();
+  });
+}
+document.getElementById('cover-frame-save').addEventListener('click', saveCoverPos);
+document.getElementById('cover-frame-reset').addEventListener('click', () => {
+  const { x, y } = coverPosEls();
+  x.value = 50;
+  y.value = 50;
+  applyCoverPos();
+  refreshCoverSaveState();
+});
 
 document.getElementById('log-form').addEventListener('submit', async (event) => {
   event.preventDefault();

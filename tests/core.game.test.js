@@ -24,6 +24,21 @@ test('validateGameUpdate rechaza title vacío si se manda', () => {
   assert.throws(() => validateGameUpdate({ title: '   ' }));
 });
 
+test('validateGameUpdate redondea y recorta el encuadre a [0, 100]', () => {
+  assert.deepEqual(validateGameUpdate({ coverPosX: 33.6, coverPosY: 0 }), {
+    coverPosX: 34,
+    coverPosY: 0,
+  });
+  assert.deepEqual(validateGameUpdate({ coverPosX: -20, coverPosY: 250 }), {
+    coverPosX: 0,
+    coverPosY: 100,
+  });
+});
+
+test('validateGameUpdate rechaza un encuadre no numérico', () => {
+  assert.throws(() => validateGameUpdate({ coverPosX: 'centro' }));
+});
+
 test('validateCoverInput acepta un data URI de imagen', () => {
   const r = validateCoverInput({ dataUrl: 'data:image/png;base64,iVBORw0KGgo=' });
   assert.deepEqual(r, { kind: 'blob', mime: 'image/png', base64: 'iVBORw0KGgo=' });

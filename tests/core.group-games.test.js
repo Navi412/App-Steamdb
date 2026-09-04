@@ -97,6 +97,21 @@ test('logros y tiempos de IGDB se toman de la fila que los tiene', () => {
   assert.equal(g.igdbMainMinutes, 480);
 });
 
+test('el encuadre acompaña a la fila de Steam, no a la más jugada', () => {
+  const [g] = groupGames([
+    row({ id: 1, platform: 'Xbox', source: 'xbox', totalMinutes: 999, coverPosX: 50, coverPosY: 50 }),
+    row({ id: 2, platform: 'Steam', steamAppId: '1', totalMinutes: 10, coverPosX: 80, coverPosY: 20 }),
+  ]);
+  assert.equal(g.coverPosX, 80);
+  assert.equal(g.coverPosY, 20);
+});
+
+test('sin encuadre guardado el grupo queda centrado', () => {
+  const [g] = groupGames([row({ id: 1 })]);
+  assert.equal(g.coverPosX, 50);
+  assert.equal(g.coverPosY, 50);
+});
+
 test('dos filas de la misma plataforma se dedupe en una sola etiqueta', () => {
   const [g] = groupGames([
     row({ id: 1, platform: 'Xbox', source: 'xbox', title: 'Death Stranding', totalMinutes: 10 }),

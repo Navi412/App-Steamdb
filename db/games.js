@@ -14,6 +14,9 @@ function rowToGame(row) {
     coverUrl: row.cover_updated_at
       ? `/api/games/${row.id}/cover?v=${Date.parse(row.cover_updated_at)}`
       : null,
+    // Encuadre de la carátula (object-position en %). Ver migración 011.
+    coverPosX: row.cover_pos_x ?? 50,
+    coverPosY: row.cover_pos_y ?? 50,
     inToPlay: Boolean(row.in_to_play),
     createdAt: row.created_at,
     missingSince: row.missing_since,
@@ -97,13 +100,12 @@ function updateGame(db, id, changes) {
   const title = changes.title !== undefined ? changes.title : current.title;
   const platform = changes.platform !== undefined ? changes.platform : current.platform;
   const archived = changes.archived !== undefined ? (changes.archived ? 1 : 0) : current.archived;
+  const coverPosX = changes.coverPosX !== undefined ? changes.coverPosX : current.cover_pos_x;
+  const coverPosY = changes.coverPosY !== undefined ? changes.coverPosY : current.cover_pos_y;
 
-  db.prepare('UPDATE games SET title = ?, platform = ?, archived = ? WHERE id = ?').run(
-    title,
-    platform,
-    archived,
-    id
-  );
+  db.prepare(
+    'UPDATE games SET title = ?, platform = ?, archived = ?, cover_pos_x = ?, cover_pos_y = ? WHERE id = ?'
+  ).run(title, platform, archived, coverPosX, coverPosY, id);
 
   return getGameById(db, id);
 }

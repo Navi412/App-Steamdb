@@ -27,7 +27,22 @@ function validateGameUpdate(changes = {}) {
     result.archived = Boolean(changes.archived);
   }
 
+  if (changes.coverPosX !== undefined) {
+    result.coverPosX = clampPercent(changes.coverPosX, 'coverPosX');
+  }
+  if (changes.coverPosY !== undefined) {
+    result.coverPosY = clampPercent(changes.coverPosY, 'coverPosY');
+  }
+
   return result;
+}
+
+// El encuadre de la carátula es un porcentaje entero de object-position: se
+// acepta cualquier número, se redondea y se recorta a [0, 100].
+function clampPercent(value, field) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) throw new Error(`${field} debe ser un número entre 0 y 100`);
+  return Math.min(100, Math.max(0, Math.round(n)));
 }
 
 function validatePositiveMinutesOrNull(value, field) {
