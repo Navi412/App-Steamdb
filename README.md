@@ -6,6 +6,10 @@ Games**) y te deja añadir a mano los juegos del resto de plataformas. Como
 Steam solo expone un contador acumulado de horas, la app guarda instantáneas
 periódicas y **deriva** de la diferencia cuánto jugaste en cada intervalo.
 
+A cualquier juego se le puede poner una **carátula propia** (subir una
+imagen o pegar una URL), tanto al crearlo como después desde su ficha; se
+guarda en la base de datos y manda sobre el arte de la tienda.
+
 <p align="center">
   <a href="https://github.com/Navi412/App-Steamdb/releases/latest">
     <img src="https://img.shields.io/github/v/release/Navi412/App-Steamdb?sort=semver&display_name=release&label=Descargar%20para%20Windows&logo=windows&color=2ea44f&style=for-the-badge" alt="Descargar para Windows">

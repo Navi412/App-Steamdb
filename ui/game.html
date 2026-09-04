@@ -3,9 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>SteamDB — detalle</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -15,6 +13,16 @@
 
   <section class="header-card">
     <div id="game-header" class="game-header"></div>
+
+    <div class="cover-edit">
+      <label class="file-btn">
+        <input type="file" accept="image/*" id="cover-file" hidden>
+        Cambiar carátula
+      </label>
+      <button type="button" id="cover-remove" hidden>Quitar carátula</button>
+      <span id="cover-msg" class="cover-msg" role="status"></span>
+    </div>
+
     <div id="game-stats" class="stats"></div>
 
     <div class="igdb-block">

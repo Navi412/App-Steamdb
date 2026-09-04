@@ -100,15 +100,27 @@ async function refreshGames() {
   renderTotalHoursFromGames(allGames);
 }
 
-document.getElementById('add-game-form').addEventListener('submit', async (event) => {
+const addGameForm = document.getElementById('add-game-form');
+const coverNameLabel = document.getElementById('cover-name');
+
+addGameForm.cover.addEventListener('change', () => {
+  coverNameLabel.textContent = addGameForm.cover.files[0]?.name || '';
+});
+
+addGameForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
   try {
-    await submitJson('/api/games', 'POST', {
+    const game = await submitJson('/api/games', 'POST', {
       title: form.title.value,
       platform: form.platform.value,
     });
+    const file = form.cover.files[0];
+    if (file) {
+      await saveCover(game.id, { dataUrl: await readFileAsDataUrl(file) });
+    }
     form.reset();
+    coverNameLabel.textContent = '';
     await refreshGames();
   } catch (err) {
     alert(err.message);

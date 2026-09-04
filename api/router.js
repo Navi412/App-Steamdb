@@ -26,6 +26,8 @@ function createRouter() {
     get: (pattern, handler) => register('GET', pattern, handler),
     post: (pattern, handler) => register('POST', pattern, handler),
     patch: (pattern, handler) => register('PATCH', pattern, handler),
+    put: (pattern, handler) => register('PUT', pattern, handler),
+    delete: (pattern, handler) => register('DELETE', pattern, handler),
     async handle(req, res) {
       const { pathname } = new URL(req.url, 'http://localhost');
       for (const route of routes) {

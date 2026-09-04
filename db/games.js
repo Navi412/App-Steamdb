@@ -8,6 +8,12 @@ function rowToGame(row) {
     title: row.title,
     platform: row.platform,
     iconUrl: row.icon_url,
+    // Carátula subida por el usuario (tabla game_covers). Manda sobre el
+    // arte de Steam/Xbox. El ?v= es para que el navegador la recargue al
+    // cambiarla, ya que la ruta cachea de forma agresiva.
+    coverUrl: row.cover_updated_at
+      ? `/api/games/${row.id}/cover?v=${Date.parse(row.cover_updated_at)}`
+      : null,
     createdAt: row.created_at,
     missingSince: row.missing_since,
     archived: Boolean(row.archived),
@@ -30,6 +36,7 @@ function rowToGame(row) {
 const SELECT_WITH_STATS = `
   SELECT g.*,
     (SELECT external_id FROM game_external_ids e WHERE e.game_id = g.id AND e.source = 'steam') AS steam_appid,
+    (SELECT updated_at FROM game_covers c WHERE c.game_id = g.id) AS cover_updated_at,
     (SELECT COALESCE(SUM(minutes), 0) FROM play_sessions s WHERE s.game_id = g.id) AS total_minutes,
     (SELECT COUNT(*) FROM achievements a WHERE a.game_id = g.id) AS achievements_total,
     (SELECT COUNT(*) FROM achievements a WHERE a.game_id = g.id AND a.achieved = 1) AS achievements_unlocked

@@ -33,6 +33,11 @@ function normalizeIconUrl(url) {
 function coverHtml(game, { size = '' } = {}) {
   const sizeClass = size ? ` cover-${size}` : '';
 
+  // Carátula subida por el usuario: manda sobre el arte de Steam/Xbox.
+  if (game.coverUrl) {
+    return `<span class="cover${sizeClass}"><img src="${escapeHtml(game.coverUrl)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('cover-fallback')"></span>`;
+  }
+
   let primary = null;
   let fallback = null;
   if (game.steamAppId) {
@@ -59,6 +64,25 @@ function renderTotalHoursFromGames(games) {
   if (!el) return;
   const totalMinutes = games.reduce((sum, g) => sum + g.totalMinutes, 0);
   el.textContent = `⏱ ${formatHours(totalMinutes)} en total`;
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('no se pudo leer el archivo'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Sube (o reemplaza) la carátula de un juego. `payload` es { dataUrl } para
+// un archivo ya leído, o { url } para un enlace que descargará el servidor.
+function saveCover(gameId, payload) {
+  return submitJson(`/api/games/${gameId}/cover`, 'PUT', payload);
+}
+
+function removeCover(gameId) {
+  return submitJson(`/api/games/${gameId}/cover`, 'DELETE', {});
 }
 
 async function submitJson(url, method, body) {

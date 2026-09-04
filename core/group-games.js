@@ -53,6 +53,10 @@ function mergeGroup(rows) {
   const steamRow = rows.find((r) => r.steamAppId) || null;
   const igdbRow = rows.find((r) => r.igdbMainMinutes != null) || null;
 
+  // Una carátula subida a mano en cualquiera de las filas del grupo manda
+  // sobre todo (coverHtml le da prioridad).
+  const coverRow = rows.find((r) => r.coverUrl) || null;
+
   const sum = (field) => rows.reduce((acc, r) => acc + (r[field] ?? 0), 0);
 
   return {
@@ -66,6 +70,7 @@ function mergeGroup(rows) {
     achievementsTotal: sum('achievementsTotal'),
     achievementsUnlocked: sum('achievementsUnlocked'),
     steamAppId: steamRow ? steamRow.steamAppId : null,
+    coverUrl: coverRow ? coverRow.coverUrl : null,
     iconUrl: steamRow ? steamRow.iconUrl : firstDefined(rows, 'iconUrl'),
     igdbId: igdbRow ? igdbRow.igdbId : firstDefined(rows, 'igdbId'),
     igdbMainMinutes: igdbRow ? igdbRow.igdbMainMinutes : null,

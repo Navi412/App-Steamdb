@@ -33,6 +33,37 @@ function renderIgdb(game) {
   form.completionistHours.value = game.igdbCompletionistMinutes ? (game.igdbCompletionistMinutes / 60).toFixed(2) : '';
 }
 
+function renderCoverEdit(game) {
+  document.getElementById('cover-remove').hidden = !game.coverUrl;
+}
+
+async function onCoverFileChange(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const msg = document.getElementById('cover-msg');
+  msg.textContent = 'Subiendo…';
+  try {
+    await saveCover(gameIdFromUrl(), { dataUrl: await readFileAsDataUrl(file) });
+    msg.textContent = '';
+    await loadGame();
+  } catch (err) {
+    msg.textContent = err.message;
+  } finally {
+    event.target.value = '';
+  }
+}
+
+async function onCoverRemove() {
+  const msg = document.getElementById('cover-msg');
+  try {
+    await removeCover(gameIdFromUrl());
+    msg.textContent = '';
+    await loadGame();
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+}
+
 function sessionSortKey(session) {
   return session.endedAt || session.startedAt || session.createdAt;
 }
@@ -115,6 +146,7 @@ async function loadGame() {
 
   const game = await gameRes.json();
   renderHeader(game);
+  renderCoverEdit(game);
   renderSessions(sessions);
   renderAchievements(achievements);
   renderIgdb(game);
@@ -152,6 +184,9 @@ document.getElementById('igdb-form').addEventListener('submit', async (event) =>
     alert(err.message);
   }
 });
+
+document.getElementById('cover-file').addEventListener('change', onCoverFileChange);
+document.getElementById('cover-remove').addEventListener('click', onCoverRemove);
 
 loadGame();
 renderTotalHoursBadge();

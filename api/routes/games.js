@@ -1,12 +1,41 @@
-const { validateManualGame, validateGameUpdate, validateIgdbUpdate } = require('../../core/game');
+const {
+  validateManualGame,
+  validateGameUpdate,
+  validateIgdbUpdate,
+  validateCoverInput,
+  assertAllowedCoverMime,
+  MAX_COVER_BYTES,
+} = require('../../core/game');
 const { buildManualSession } = require('../../core/session');
 const { pickBestMatch } = require('../../core/igdb');
 const { groupGames } = require('../../core/group-games');
 const gamesDb = require('../../db/games');
+const coversDb = require('../../db/covers');
 const sessionsDb = require('../../db/sessions');
 const achievementsDb = require('../../db/achievements');
 const igdbClient = require('../../igdb/client');
 const { readJsonBody, sendJson } = require('../http-helpers');
+
+// Descarga una imagen desde una URL (cuando el usuario pega un enlace en
+// vez de subir un archivo). Valida tipo y tamaño igual que un archivo subido.
+async function downloadImage(url, fetchImpl) {
+  const doFetch = fetchImpl || fetch;
+  let resp;
+  try {
+    resp = await doFetch(url);
+  } catch {
+    throw new Error('no se pudo conectar con esa URL');
+  }
+  if (!resp.ok) throw new Error(`no se pudo descargar la imagen (HTTP ${resp.status})`);
+
+  const mime = (resp.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  assertAllowedCoverMime(mime);
+
+  const bytes = Buffer.from(await resp.arrayBuffer());
+  if (bytes.length === 0) throw new Error('la imagen descargada está vacía');
+  if (bytes.length > MAX_COVER_BYTES) throw new Error('la imagen descargada es demasiado grande');
+  return { mime, bytes };
+}
 
 function registerGameRoutes(router, db, { fetchImpl } = {}) {
   // Filas crudas (una por plataforma) agrupadas por título: un juego que
@@ -45,6 +74,58 @@ function registerGameRoutes(router, db, { fetchImpl } = {}) {
     } catch (err) {
       sendJson(res, 400, { error: err.message });
     }
+  });
+
+  // --- carátula propia del usuario ---
+
+  // Sirve el BLOB guardado. El ?v= del coverUrl hace de cache-buster, así
+  // que aquí se puede cachear a tope.
+  router.get('/api/games/:id/cover', (req, res, params) => {
+    const cover = coversDb.getCover(db, Number(params.id));
+    if (!cover) return sendJson(res, 404, { error: 'este juego no tiene carátula propia' });
+
+    const body = Buffer.from(cover.bytes);
+    res.writeHead(200, {
+      'Content-Type': cover.mime,
+      'Content-Length': body.length,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    });
+    res.end(body);
+  });
+
+  // Sube o reemplaza la carátula. Cuerpo: { dataUrl } (archivo subido) o
+  // { url } (enlace que descarga el servidor).
+  router.put('/api/games/:id/cover', async (req, res, params) => {
+    try {
+      const game = gamesDb.getGameById(db, Number(params.id));
+      if (!game) return sendJson(res, 404, { error: 'juego no encontrado' });
+
+      const input = validateCoverInput(await readJsonBody(req));
+
+      let mime;
+      let bytes;
+      if (input.kind === 'blob') {
+        mime = input.mime;
+        bytes = Buffer.from(input.base64, 'base64');
+        if (bytes.length > MAX_COVER_BYTES) throw new Error('la imagen es demasiado grande');
+      } else {
+        ({ mime, bytes } = await downloadImage(input.url, fetchImpl));
+      }
+
+      coversDb.setCover(db, game.id, { mime, bytes });
+      sendJson(res, 200, gamesDb.getGameById(db, game.id));
+    } catch (err) {
+      sendJson(res, 400, { error: err.message });
+    }
+  });
+
+  // Quita la carátula propia: el juego vuelve a su arte por defecto.
+  router.delete('/api/games/:id/cover', (req, res, params) => {
+    const game = gamesDb.getGameById(db, Number(params.id));
+    if (!game) return sendJson(res, 404, { error: 'juego no encontrado' });
+
+    coversDb.clearCover(db, game.id);
+    sendJson(res, 200, gamesDb.getGameById(db, game.id));
   });
 
   router.get('/api/games/:id/sessions', (req, res, params) => {

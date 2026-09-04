@@ -47,4 +47,69 @@ function validateIgdbUpdate({ mainMinutes, completionistMinutes } = {}) {
   };
 }
 
-module.exports = { validateManualGame, validateGameUpdate, validateIgdbUpdate };
+// --- carátula propia del usuario ---
+
+const MAX_COVER_BYTES = 5 * 1024 * 1024;
+const ALLOWED_COVER_MIMES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'];
+
+function assertAllowedCoverMime(mime) {
+  if (!ALLOWED_COVER_MIMES.includes(String(mime).toLowerCase())) {
+    throw new Error('formato no admitido (usa PNG, JPG, WEBP, GIF o AVIF)');
+  }
+}
+
+// Tamaño de un base64 ya decodificado, sin llegar a decodificarlo.
+function base64ByteLength(b64) {
+  const clean = b64.replace(/=+$/, '');
+  return Math.floor((clean.length * 3) / 4);
+}
+
+function parseCoverDataUrl(dataUrl) {
+  const match = /^data:([a-z]+\/[a-z0-9.+-]+);base64,(.*)$/is.exec(String(dataUrl).trim());
+  if (!match) throw new Error('la imagen no es un data URI base64 válido');
+
+  const mime = match[1].toLowerCase();
+  assertAllowedCoverMime(mime);
+
+  const base64 = match[2].replace(/\s+/g, '');
+  if (!base64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
+    throw new Error('la imagen no es un base64 válido');
+  }
+  if (base64ByteLength(base64) > MAX_COVER_BYTES) {
+    throw new Error(`la imagen supera el máximo de ${Math.round(MAX_COVER_BYTES / 1024 / 1024)} MB`);
+  }
+
+  return { kind: 'blob', mime, base64 };
+}
+
+// Valida la imagen que el usuario quiere como carátula. Dos formas de
+// entrada, mutuamente excluyentes:
+//   { dataUrl: 'data:image/png;base64,...' }  -> archivo subido desde la UI
+//   { url: 'https://...' }                    -> el servidor la descargará
+// Devuelve { kind: 'blob', mime, base64 } o { kind: 'url', url }. Pura: la
+// descarga y el guardado en base de datos los hace la capa de /api.
+function validateCoverInput({ dataUrl, url } = {}) {
+  const hasData = dataUrl !== undefined && dataUrl !== null && dataUrl !== '';
+  const hasUrl = url !== undefined && url !== null && url !== '';
+
+  if (hasData && hasUrl) throw new Error('manda dataUrl o url, no ambos');
+  if (hasData) return parseCoverDataUrl(dataUrl);
+  if (hasUrl) {
+    const clean = String(url).trim();
+    if (!/^https?:\/\//i.test(clean)) {
+      throw new Error('la url debe empezar por http:// o https://');
+    }
+    return { kind: 'url', url: clean };
+  }
+  throw new Error('falta la imagen (dataUrl o url)');
+}
+
+module.exports = {
+  validateManualGame,
+  validateGameUpdate,
+  validateIgdbUpdate,
+  validateCoverInput,
+  assertAllowedCoverMime,
+  MAX_COVER_BYTES,
+  ALLOWED_COVER_MIMES,
+};

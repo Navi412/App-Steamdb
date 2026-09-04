@@ -231,3 +231,68 @@ test('POST /api/games/:id/igdb/search en juego inexistente da 404', async () => 
     assert.equal(res.status, 404);
   });
 });
+
+test('PUT/GET/DELETE /api/games/:id/cover: subir, servir y quitar una carátula', async () => {
+  await withServer(async (base) => {
+    const game = await (await postJson(base, '/api/games', { title: 'Celeste', platform: 'PC' })).json();
+    assert.equal(game.coverUrl, null);
+
+    const pngBase64 = 'iVBORw0KGgoAAAANSUhEUg==';
+    const putRes = await fetch(`${base}/api/games/${game.id}/cover`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl: `data:image/png;base64,${pngBase64}` }),
+    });
+    assert.equal(putRes.status, 200);
+    const updated = await putRes.json();
+    assert.match(updated.coverUrl, new RegExp(`^/api/games/${game.id}/cover\\?v=\\d+$`));
+
+    const imgRes = await fetch(`${base}${updated.coverUrl}`);
+    assert.equal(imgRes.status, 200);
+    assert.equal(imgRes.headers.get('content-type'), 'image/png');
+    const got = Buffer.from(await imgRes.arrayBuffer());
+    assert.deepEqual(got, Buffer.from(pngBase64, 'base64'));
+
+    // Aparece también en la lista agrupada.
+    const list = await (await fetch(`${base}/api/games`)).json();
+    assert.equal(list[0].coverUrl, updated.coverUrl);
+
+    const delRes = await fetch(`${base}/api/games/${game.id}/cover`, { method: 'DELETE' });
+    assert.equal(delRes.status, 200);
+    assert.equal((await delRes.json()).coverUrl, null);
+    assert.equal((await fetch(`${base}${updated.coverUrl}`)).status, 404);
+  });
+});
+
+test('PUT /api/games/:id/cover rechaza un formato que no es imagen', async () => {
+  await withServer(async (base) => {
+    const game = await (await postJson(base, '/api/games', { title: 'X', platform: 'PC' })).json();
+    const res = await fetch(`${base}/api/games/${game.id}/cover`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl: 'data:application/pdf;base64,JVBERi0=' }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('PUT /api/games/:id/cover descarga una imagen desde una url', async () => {
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUg==', 'base64');
+  const fetchImpl = async () =>
+    new Response(pixel, { status: 200, headers: { 'content-type': 'image/png' } });
+
+  await withServer(async (base) => {
+    const game = await (await postJson(base, '/api/games', { title: 'Y', platform: 'PC' })).json();
+    const res = await fetch(`${base}/api/games/${game.id}/cover`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://ejemplo/portada.png' }),
+    });
+    assert.equal(res.status, 200);
+    const updated = await res.json();
+    assert.ok(updated.coverUrl);
+
+    const img = Buffer.from(await (await fetch(`${base}${updated.coverUrl}`)).arrayBuffer());
+    assert.deepEqual(img, pixel);
+  }, { fetchImpl });
+});

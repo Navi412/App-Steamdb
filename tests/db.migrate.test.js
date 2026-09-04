@@ -13,6 +13,7 @@ function tempDbPath() {
 const EXPECTED_TABLES = [
   'games',
   'game_external_ids',
+  'game_covers',
   'playtime_snapshots',
   'play_sessions',
   'sync_anomalies',

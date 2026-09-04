@@ -28,6 +28,24 @@ histórico, así que vive como columnas y no como tabla aparte.
 `missing_since` lo ponen los flujos de sync (hoy solo Steam). `archived` es
 una acción manual del usuario, aplicable a cualquier juego.
 
+### `game_covers`
+
+Carátula que el usuario sube a mano (o pega por URL, que el servidor
+descarga una vez). Vive aparte de `games` para no arrastrar el BLOB en cada
+`SELECT g.*` de la lista.
+
+| columna     | tipo    | notas                                          |
+|-------------|---------|------------------------------------------------|
+| game_id     | INTEGER | PK, FK → games.id                              |
+| mime        | TEXT    | `image/png`, `image/jpeg`, `image/webp`...     |
+| bytes       | BLOB    | la imagen tal cual (máx. 5 MB)                 |
+| updated_at  | TEXT    | ISO8601; también hace de cache-buster en la UI |
+
+Tiene prioridad sobre el arte de Steam/Xbox y sobre `icon_url`. Borrar la
+fila devuelve el juego a su carátula por defecto; no toca `games`.
+`db/games.rowToGame` expone `coverUrl` (`/api/games/:id/cover?v=<ts>`) y
+`coverHtml` en la UI lo usa antes que nada.
+
 ### `game_external_ids`
 
 El id de un juego en cada tienda externa. Una fila por `(game_id, source)`.
