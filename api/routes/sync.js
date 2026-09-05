@@ -1,6 +1,7 @@
 const { runSync } = require('../../sync/run');
 const { runXboxSync } = require('../../xbox/run');
 const { runEpicSync } = require('../../epic/run');
+const { fileAuthStore: epicFileAuthStore } = require('../../epic/file-auth-store');
 const { runGogSync } = require('../../gog/run');
 const { sendJson } = require('../http-helpers');
 
@@ -20,7 +21,7 @@ function registerSyncRoutes(router, db, { fetchImpl, epicAuthPath, gogDbPath } =
     const launchers = [
       ['steam', () => runSync({ db, apiKey: process.env.STEAM_API_KEY, steamId: process.env.STEAM_ID, fetchImpl })],
       ['xbox', () => runXboxSync({ db, apiKey: process.env.OPENXBL_API_KEY, fetchImpl })],
-      ['epic', () => runEpicSync({ db, fetchImpl, authPath: epicAuthPath })],
+      ['epic', () => runEpicSync({ db, fetchImpl, authStore: epicFileAuthStore(epicAuthPath) })],
       ['gog', () => runGogSync({ db, dbPath: gogDbPath })],
     ];
 

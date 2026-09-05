@@ -1,5 +1,3 @@
-const { openDatabase } = require('../db/connection');
-const { migrate } = require('../db/migrate');
 const xboxClient = require('./client');
 const gamesDb = require('../db/games');
 const snapshotsDb = require('../db/snapshots');
@@ -113,28 +111,6 @@ async function runXboxSync({
     syncRunsDb.failRun(db, runId, err.message);
     throw err;
   }
-}
-
-if (require.main === module) {
-  const db = openDatabase();
-  migrate(db);
-  runXboxSync({ db, apiKey: process.env.OPENXBL_API_KEY })
-    .then((r) => {
-      console.log(
-        `Xbox: ${r.gamesSynced} en el historial | ${r.added} nuevos, ${r.updated} con horas nuevas, ` +
-          `${r.skipped} sin cambios/sin dato`
-      );
-      if (r.stoppedEarly) {
-        console.log(
-          `\nSe alcanzó el límite de OpenXBL con ${r.pending} juegos aún por procesar. ` +
-            `Vuelve a correr "npm run sync:xbox" dentro de una hora para terminar.`
-        );
-      }
-    })
-    .catch((err) => {
-      console.error(`falló la sincronización de Xbox: ${err.message}`);
-      process.exitCode = 1;
-    });
 }
 
 module.exports = { runXboxSync };

@@ -9,6 +9,7 @@
 const { fetchOwnedGames } = require('../sync/steam-client');
 const { getAccessToken } = require('../igdb/client');
 const epicRun = require('../epic/run');
+const epicAuthStore = require('../epic/file-auth-store');
 const epicClient = require('../epic/client');
 
 const RESOLVE_VANITY_URL = 'https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/';
@@ -106,9 +107,9 @@ function extractEpicCode(raw) {
 // Canjea el código de autorización de Epic por un refresh token y lo deja
 // guardado en data/epic_auth.json (vía epic/run.js, misma ruta que usa el
 // sync).
-async function activateEpic(code, { authPath = epicRun.DEFAULT_AUTH_PATH, fetchImpl = fetch } = {}) {
+async function activateEpic(code, { authPath = epicAuthStore.DEFAULT_AUTH_PATH, fetchImpl = fetch } = {}) {
   try {
-    const accountId = await epicRun.loginWithCode(code, { authPath, fetchImpl });
+    const accountId = await epicRun.loginWithCode(code, { authStore: epicAuthStore.fileAuthStore(authPath), fetchImpl });
     return { ok: true, detail: `sesión guardada (cuenta ${accountId})` };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -118,12 +119,12 @@ async function activateEpic(code, { authPath = epicRun.DEFAULT_AUTH_PATH, fetchI
 // Refresca la sesión de Epic ya guardada y hace una consulta de humo. El
 // refresh token de Epic rueda en cada uso, así que hay que volver a
 // guardarlo o el siguiente sync real fallaría.
-async function validateEpic({ authPath = epicRun.DEFAULT_AUTH_PATH, fetchImpl = fetch } = {}) {
-  const stored = epicRun.loadAuth(authPath);
+async function validateEpic({ authPath = epicAuthStore.DEFAULT_AUTH_PATH, fetchImpl = fetch } = {}) {
+  const stored = epicAuthStore.loadAuth(authPath);
   if (!stored?.refreshToken) return { ok: false, error: 'sin sesión de Epic guardada' };
   try {
     const token = await epicClient.refreshAccessToken(stored.refreshToken, { fetchImpl });
-    epicRun.saveAuth(authPath, {
+    epicAuthStore.saveAuth(authPath, {
       refreshToken: token.refreshToken,
       accountId: token.accountId || stored.accountId,
     });

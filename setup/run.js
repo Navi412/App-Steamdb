@@ -262,7 +262,7 @@ async function runWizard() {
       const migrated = runProjectNode([path.join('db', 'migrate.js')], 'Creando la base de datos…');
       if (migrated) {
         const synced = runProjectNode(
-          ['--env-file-if-exists=.env', path.join('sync', 'run.js')],
+          ['--env-file-if-exists=.env', path.join('sync', 'cli.js')],
           'Primera sincronización con Steam…'
         );
         if (synced) console.log(green('\n✔ Todo listo. Arranca la app con  npm start   (o  npm run electron)'));

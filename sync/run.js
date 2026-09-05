@@ -1,5 +1,3 @@
-const { openDatabase } = require('../db/connection');
-const { migrate } = require('../db/migrate');
 const { fetchOwnedGames, fetchPlayerAchievements } = require('./steam-client');
 const { normalizeOwnedGames, normalizePlayerAchievements } = require('./normalize');
 const gamesDb = require('../db/games');
@@ -72,19 +70,6 @@ async function runSync({ db, apiKey, steamId, fetchImpl } = {}) {
     syncRunsDb.failRun(db, runId, err.message);
     throw err;
   }
-}
-
-if (require.main === module) {
-  const db = openDatabase();
-  migrate(db);
-  runSync({ db, apiKey: process.env.STEAM_API_KEY, steamId: process.env.STEAM_ID })
-    .then(({ gamesSynced }) => {
-      console.log(`sincronizados ${gamesSynced} juegos`);
-    })
-    .catch((err) => {
-      console.error(`fallo la sincronización: ${err.message}`);
-      process.exitCode = 1;
-    });
 }
 
 module.exports = { runSync };

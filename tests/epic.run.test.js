@@ -7,6 +7,20 @@ const { openDatabase } = require('../db/connection');
 const { migrate } = require('../db/migrate');
 const gamesDb = require('../db/games');
 const { runEpicSync, loginWithCode } = require('../epic/run');
+const { fileAuthStore } = require('../epic/file-auth-store');
+
+// Guarda en memoria en vez de en fichero — así se prueba el mismo camino
+// que usa el móvil (que no tiene node:fs) vía db/settings.js.
+function memoryAuthStore(initial = null) {
+  let stored = initial;
+  return {
+    load: () => stored,
+    save: (token) => {
+      stored = token;
+    },
+    peek: () => stored,
+  };
+}
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'steamdb-epic-'));
@@ -81,8 +95,9 @@ function baseState() {
 }
 
 function seedAuth(dir) {
-  fs.writeFileSync(path.join(dir, 'epic_auth.json'), JSON.stringify({ refreshToken: 'RT0', accountId: 'acc-1' }));
-  return path.join(dir, 'epic_auth.json');
+  const authPath = path.join(dir, 'epic_auth.json');
+  fs.writeFileSync(authPath, JSON.stringify({ refreshToken: 'RT0', accountId: 'acc-1' }));
+  return authPath;
 }
 
 test('loginWithCode guarda el refresh token devuelto por Epic', async () => {
@@ -90,7 +105,10 @@ test('loginWithCode guarda el refresh token devuelto por Epic', async () => {
   const authPath = path.join(dir, 'epic_auth.json');
   const state = {};
 
-  const accountId = await loginWithCode('some-code', { authPath, fetchImpl: fakeEpic(state) });
+  const accountId = await loginWithCode('some-code', {
+    authStore: fileAuthStore(authPath),
+    fetchImpl: fakeEpic(state),
+  });
   assert.equal(accountId, 'acc-1');
   assert.deepEqual(JSON.parse(fs.readFileSync(authPath, 'utf8')), { refreshToken: 'RT-1', accountId: 'acc-1' });
 });
@@ -99,7 +117,12 @@ test('runEpicSync exige haber hecho login antes', async () => {
   const dir = tmpDir();
   const db = tempDb(dir);
   await assert.rejects(
-    () => runEpicSync({ db, authPath: path.join(dir, 'no-existe.json'), fetchImpl: fakeEpic({}) }),
+    () =>
+      runEpicSync({
+        db,
+        authStore: fileAuthStore(path.join(dir, 'no-existe.json')),
+        fetchImpl: fakeEpic({}),
+      }),
     /epic:login/
   );
 });
@@ -110,7 +133,7 @@ test('primera sync: da de alta los juegos de Epic, descarta lo que no es juego, 
   const authPath = seedAuth(dir);
   const state = baseState();
 
-  const result = await runEpicSync({ db, authPath, fetchImpl: fakeEpic(state), delayMs: 0 });
+  const result = await runEpicSync({ db, authStore: fileAuthStore(authPath), fetchImpl: fakeEpic(state), delayMs: 0 });
   assert.equal(result.added, 1);
   assert.equal(result.skipped, 1); // Unreal Engine no es 'games'
 
@@ -134,10 +157,11 @@ test('segunda sync con más minutos deriva una sesión del intervalo', async () 
   const db = tempDb(dir);
   const authPath = seedAuth(dir);
   const state = baseState();
+  const store = fileAuthStore(authPath);
 
-  await runEpicSync({ db, authPath, fetchImpl: fakeEpic(state), delayMs: 0 });
+  await runEpicSync({ db, authStore: store, fetchImpl: fakeEpic(state), delayMs: 0 });
   state.playtime[0].minutes = 560;
-  const second = await runEpicSync({ db, authPath, fetchImpl: fakeEpic(state), delayMs: 0 });
+  const second = await runEpicSync({ db, authStore: store, fetchImpl: fakeEpic(state), delayMs: 0 });
   assert.equal(second.updated, 1);
 
   const game = gamesDb.getGameByExternalId(db, 'epic', 'AlanWake');
@@ -154,9 +178,25 @@ test('un juego con horas pero sin entrada en la biblioteca se descarta sin rompe
   const state = baseState();
   state.playtime.push({ id: 'Huerfano', minutes: 100 }); // sin asset
 
-  const result = await runEpicSync({ db, authPath, fetchImpl: fakeEpic(state), delayMs: 0 });
+  const result = await runEpicSync({ db, authStore: fileAuthStore(authPath), fetchImpl: fakeEpic(state), delayMs: 0 });
   assert.equal(result.added, 1);
   assert.equal(result.skipped, 2);
+});
+
+test('loginWithCode y runEpicSync aceptan un authStore en memoria, sin tocar ningún fichero', async () => {
+  const dir = tmpDir();
+  const db = tempDb(dir);
+  const state = baseState();
+  const store = memoryAuthStore();
+
+  const accountId = await loginWithCode('some-code', { authStore: store, fetchImpl: fakeEpic(state) });
+  assert.equal(accountId, 'acc-1');
+  assert.equal(store.peek().refreshToken, 'RT-1');
+
+  const result = await runEpicSync({ db, authStore: store, fetchImpl: fakeEpic(state), delayMs: 0 });
+  assert.equal(result.added, 1);
+  // el refresh token en el store rotó, sin tocar ningún fichero
+  assert.equal(store.peek().refreshToken, 'RT-2');
 });
 
 test('un fallo de Epic se registra en sync_runs y se propaga', async () => {
@@ -167,7 +207,10 @@ test('un fallo de Epic se registra en sync_runs y se propaga', async () => {
     throw new Error('sin conexión');
   };
 
-  await assert.rejects(() => runEpicSync({ db, authPath, fetchImpl, delayMs: 0 }), /sin conexión/);
+  await assert.rejects(
+    () => runEpicSync({ db, authStore: fileAuthStore(authPath), fetchImpl, delayMs: 0 }),
+    /sin conexión/
+  );
   const run = db.prepare('SELECT * FROM sync_runs ORDER BY id DESC').get();
   assert.equal(run.status, 'error');
 });

@@ -1,0 +1,27 @@
+{
+  "name": "backlog-mobile",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build:migrations": "node scripts/build-migrations.js",
+    "postinstall": "node scripts/build-migrations.js",
+    "build:apk": "eas build --platform android --profile preview"
+  },
+  "dependencies": {
+    "expo": "~52.0.49",
+    "expo-asset": "~11.0.5",
+    "expo-sqlite": "~15.1.4",
+    "expo-status-bar": "~2.0.1",
+    "react": "18.3.1",
+    "react-native": "0.76.9"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "eas-cli": "^23.2.0"
+  },
+  "private": true
+}

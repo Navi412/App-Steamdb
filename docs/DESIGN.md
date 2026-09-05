@@ -269,7 +269,8 @@ hasta ese momento, y cabe en un commit razonable.
   misma forma de instantánea.
 - **Xbox / Game Pass.** `xbox/client.js` habla con OpenXBL (xbl.io, un
   puente de terceros con Xbox Live, API key única en vez de la cadena OAuth
-  de Microsoft). `xbox/run.js` (`npm run sync:xbox`) da de alta los juegos
+  de Microsoft). `xbox/run.js` (invocado por `xbox/cli.js`, que es lo que
+  corre `npm run sync:xbox`) da de alta los juegos
   del historial y guarda instantáneas del stat `MinutesPlayed` de cada uno;
   reusa `deriveSession` con `origin='xbox_sync'`. OpenXBL gratis limita a
   ~150 peticiones/hora, así que el runner solo consulta los juegos con
@@ -345,10 +346,39 @@ hasta ese momento, y cabe en un commit razonable.
   los resume). `setup/env-file.js` (puro) reescribe `.env` sobre
   `.env.example` para conservar los comentarios-guía, con copia a `.env.bak`.
   Al terminar, si Steam quedó validado, se ofrece a lanzar `db/migrate.js` +
-  `sync/run.js` (`spawnSync`, salida en directo) para dejar la app lista sin
+  `sync/cli.js` (`spawnSync`, salida en directo) para dejar la app lista sin
   más comandos. `npm run setup:check` corre solo los validadores (modo
   doctor, no interactivo, exit 1 si algo configurado falla). Epic se activa
   aquí: el asistente pide el `authorizationCode` y llama a `loginWithCode`.
+- **`sync/run.js`, `xbox/run.js` y `epic/run.js` no tocan `node:fs` ni
+  `node:sqlite`.** Cada uno exporta solo la función pura (`runSync`,
+  `runXboxSync`, `runEpicSync`) que recibe `db` ya abierto; abrir la base y
+  el bloque de CLI viven en un `cli.js` hermano (`sync/cli.js`,
+  `xbox/cli.js`, `epic/cli.js`), que es lo que invocan los scripts de
+  `package.json`. Epic además saca a `epic/file-auth-store.js` el
+  almacenamiento del refresh token en fichero; `epic/run.js` recibe un
+  `authStore` (load()/save()) inyectado, sin valor por defecto. Motivo:
+  `/mobile` importa estos runners tal cual (ver "Móvil" más abajo) y Metro
+  empaqueta cualquier `require()` que aparezca en un fichero aunque esté en
+  una rama que nunca se ejecute ahí — bastaba con que `node:fs` apareciera
+  en el mismo fichero para que el bundle fallara, aunque el móvil nunca
+  fuera a correr ese código.
+- **Móvil (`/mobile`, Expo/React Native).** Reutiliza `/core`, `/db`,
+  `/sync`, `/xbox`, `/epic` y `/setup` (solo `extractEpicCode`, inline) sin
+  duplicar una línea; Metro (`mobile/metro.config.js`) ve fuera de
+  `mobile/` para eso, con el `node_modules` de la raíz bloqueado (son
+  dependencias de Electron) y el de `mobile/` añadido como
+  `nodeModulesPaths` extra, porque el código compartido sí arrastra
+  `@babel/runtime` desde fuera del árbol de `mobile/`. `mobile/db/` es la
+  única parte no compartida: mismo contrato que `db/connection.js`
+  (`exec`/`prepare().run/get/all`) pero respaldado por `expo-sqlite` en vez
+  de `node:sqlite`, con las migraciones empaquetadas como datos
+  (`mobile/scripts/build-migrations.js`) porque el bundle no puede
+  `fs.readdirSync` sobre sí mismo. Las credenciales (Steam API key,
+  SteamID, OpenXBL key, sesión de Epic) se guardan en la propia SQLite del
+  móvil (`db/settings.js`, tabla `settings`) en vez de en `.env`. GOG queda
+  fuera: no tiene API, solo la SQLite local de GOG Galaxy en el PC, y no hay
+  forma de leerla desde el teléfono.
 - **Instalador de escritorio (`npm run dist`).** `electron-builder` empaqueta
   `/electron` + `/api` + `/core` + `/db` + `/sync` + `/xbox` + `/epic` +
   `/igdb` + `/ui` + `/setup` (config `build` en `package.json`) en

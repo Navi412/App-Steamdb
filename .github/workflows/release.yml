@@ -1,8 +1,16 @@
 name: Publicar instalador
 
-# Compila el instalador de Windows y lo adjunta a una Release cada vez que se
-# empuja un tag "vX.Y.Z". También se puede lanzar a mano desde la pestaña
-# Actions (workflow_dispatch), indicando el tag a crear.
+# Compila el instalador de Windows y el APK de Android, y los adjunta a una
+# Release cada vez que se empuja un tag "vX.Y.Z". También se puede lanzar a
+# mano desde la pestaña Actions (workflow_dispatch), indicando el tag a
+# crear.
+#
+# El APK se compila en la nube de EAS (Expo), no en el runner: por eso el
+# job de Android no necesita Android SDK ni Java instalados, solo Node y el
+# secreto EXPO_TOKEN (Access Token de la cuenta de Expo, en
+# expo.dev -> cuenta -> Access Tokens). El proyecto tiene que estar ya
+# vinculado (mobile/app.json con extra.eas.projectId) — eso solo se hace
+# una vez, a mano, con `eas login` + un primer `eas build` interactivo.
 
 on:
   push:
@@ -45,3 +53,42 @@ jobs:
           prerelease: false
           fail_on_unmatched_files: true
           files: dist/*.exe
+
+  android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Instalar dependencias del móvil
+        working-directory: mobile
+        run: npm ci
+
+      - name: Compilar el APK en EAS
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli build --platform android --profile preview --non-interactive --wait --json > eas-build.json
+
+      - name: Descargar el APK compilado
+        working-directory: mobile
+        run: |
+          URL=$(node -e "console.log(JSON.parse(require('fs').readFileSync('eas-build.json','utf8'))[0].artifacts.buildUrl)")
+          curl -L -o backlog.apk "$URL"
+
+      - name: Publicar en Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Backlog ${{ github.event.inputs.tag || github.ref_name }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: mobile/backlog.apk
