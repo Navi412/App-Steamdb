@@ -9,6 +9,10 @@ dist/
 web-build/
 expo-env.d.ts
 
+# generado por `expo prebuild` (solo para compilar el APK, no se commitea)
+android/
+ios/
+
 # Native
 *.orig.*
 *.jks

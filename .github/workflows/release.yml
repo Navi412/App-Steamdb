@@ -5,12 +5,14 @@ name: Publicar instalador
 # mano desde la pestaña Actions (workflow_dispatch), indicando el tag a
 # crear.
 #
-# El APK se compila en la nube de EAS (Expo), no en el runner: por eso el
-# job de Android no necesita Android SDK ni Java instalados, solo Node y el
-# secreto EXPO_TOKEN (Access Token de la cuenta de Expo, en
-# expo.dev -> cuenta -> Access Tokens). El proyecto tiene que estar ya
-# vinculado (mobile/app.json con extra.eas.projectId) — eso solo se hace
-# una vez, a mano, con `eas login` + un primer `eas build` interactivo.
+# El APK se compila en el propio runner de GitHub (Java + Android SDK
+# instalados ahí), sin ningún servicio externo ni cuenta: `expo prebuild`
+# genera el proyecto nativo `android/` y luego se invoca Gradle directamente,
+# igual que el instalador de Windows se compila con electron-builder en su
+# propio runner. El APK sale firmado con la keystore de debug que genera
+# el propio Android Gradle Plugin (es lo que trae el release build type de
+# React Native por defecto) — vale para instalarlo en cualquier móvil, no
+# para publicarlo en Play Store.
 
 on:
   push:
@@ -67,21 +69,30 @@ jobs:
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Instalar dependencias del móvil
         working-directory: mobile
         run: npm ci
 
-      - name: Compilar el APK en EAS
+      - name: Generar el proyecto nativo de Android
         working-directory: mobile
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx eas-cli build --platform android --profile preview --non-interactive --wait --json > eas-build.json
+          CI: true
+        run: npx expo prebuild --platform android --no-install
 
-      - name: Descargar el APK compilado
-        working-directory: mobile
+      - name: Compilar el APK
+        working-directory: mobile/android
         run: |
-          URL=$(node -e "console.log(JSON.parse(require('fs').readFileSync('eas-build.json','utf8'))[0].artifacts.buildUrl)")
-          curl -L -o backlog.apk "$URL"
+          chmod +x gradlew
+          ./gradlew assembleRelease
 
       - name: Publicar en Releases
         uses: softprops/action-gh-release@v2
@@ -91,4 +102,4 @@ jobs:
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
-          files: mobile/backlog.apk
+          files: mobile/android/app/build/outputs/apk/release/app-release.apk
