@@ -35,15 +35,27 @@ import {
 // GOG se queda fuera: no tiene API, Galaxy solo guarda las horas en su
 // propia base SQLite local dentro del PC, y no hay forma de leer eso desde
 // el teléfono.
-const { openDatabase } = require('./db/connection');
-const { migrate } = require('./db/migrate');
-const gamesDb = require('../db/games');
-const settingsDb = require('../db/settings');
-const { groupGames } = require('../core/group-games');
-const { validateManualGame } = require('../core/game');
-const { runSync } = require('../sync/run');
-const { runXboxSync } = require('../xbox/run');
-const { runEpicSync, loginWithCode } = require('../epic/run');
+// Envuelto en try/catch porque un fallo aquí (p.ej. un require que Metro
+// empaquetó pero que revienta al ejecutarse en el dispositivo) pasaba antes
+// desapercibido: ocurre al evaluar el módulo, antes de que exista ningún
+// componente que lo capture, así que sin esto la app se queda en una
+// pantalla negra sin ninguna pista de qué falló.
+let openDatabase, migrate, gamesDb, settingsDb, groupGames, validateManualGame;
+let runSync, runXboxSync, runEpicSync, loginWithCode;
+let bootError = null;
+try {
+  ({ openDatabase } = require('./db/connection'));
+  ({ migrate } = require('./db/migrate'));
+  gamesDb = require('../db/games');
+  settingsDb = require('../db/settings');
+  ({ groupGames } = require('../core/group-games'));
+  ({ validateManualGame } = require('../core/game'));
+  ({ runSync } = require('../sync/run'));
+  ({ runXboxSync } = require('../xbox/run'));
+  ({ runEpicSync, loginWithCode } = require('../epic/run'));
+} catch (err) {
+  bootError = err;
+}
 
 // Igual que setup/validate.js -> extractEpicCode, duplicado aquí en vez de
 // importado: ese módulo también carga epic/file-auth-store.js (node:fs),
@@ -126,7 +138,11 @@ export default function App() {
     (database) => {
       const target = database || db;
       if (!target) return;
-      setGames(groupGames(gamesDb.listGames(target)));
+      try {
+        setGames(groupGames(gamesDb.listGames(target)));
+      } catch (err) {
+        setError(err.message);
+      }
     },
     [db]
   );
@@ -134,6 +150,16 @@ export default function App() {
   useEffect(() => {
     if (db) reload(db);
   }, [db, reload]);
+
+  if (bootError) {
+    return (
+      <View style={[styles.container, { paddingTop: 80 }]}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+        <Text style={styles.title}>Error al iniciar la app</Text>
+        <Text style={styles.error}>{String(bootError.stack || bootError.message || bootError)}</Text>
+      </View>
+    );
+  }
 
   async function onAdd() {
     if (!db || !title.trim()) return;
