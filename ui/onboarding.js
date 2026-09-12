@@ -81,9 +81,10 @@ function renderWelcome() {
   setStepHTML(`
     <p class="ob-eyebrow">Bienvenido</p>
     <h1>Tu biblioteca de videojuegos, en un solo sitio</h1>
-    <p>Backlog junta cuánto has jugado en Steam, Xbox / Game Pass, Epic Games y GOG,
-    y te deja añadir a mano el resto de plataformas (PlayStation, Switch, Mac...).
-    Todo en una sola estantería, con las horas siempre al día.</p>
+    <p>Backlog junta cuánto has jugado en Steam, Xbox / Game Pass, Epic Games, GOG
+    y Nintendo Switch vía el emulador Eden, y te deja añadir a mano el resto de
+    plataformas (PlayStation, Switch de verdad, Mac...). Todo en una sola
+    estantería, con las horas siempre al día.</p>
     <p>Steam no guarda un historial de horas: la app hace capturas periódicas del
     contador y calcula sola cuánto jugaste en cada rato. Por eso hace falta conectar
     al menos tu cuenta de Steam — el resto de plataformas son opcionales y se pueden
@@ -93,7 +94,8 @@ function renderWelcome() {
       <span class="ob-feature-pill" style="animation-delay:.12s">🎮 Xbox</span>
       <span class="ob-feature-pill" style="animation-delay:.19s">🚀 Epic</span>
       <span class="ob-feature-pill" style="animation-delay:.26s">🧩 GOG</span>
-      <span class="ob-feature-pill" style="animation-delay:.33s">✋ Manual</span>
+      <span class="ob-feature-pill" style="animation-delay:.33s">🍄 Eden</span>
+      <span class="ob-feature-pill" style="animation-delay:.40s">✋ Manual</span>
     </div>
     <div class="ob-actions">
       <button type="button" id="ob-start">Empezar →</button>

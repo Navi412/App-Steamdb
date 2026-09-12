@@ -55,13 +55,13 @@ function serveStatic(req, res) {
   });
 }
 
-function createServer({ fetchImpl, epicAuthPath, gogDbPath, envPath } = {}) {
+function createServer({ fetchImpl, epicAuthPath, gogDbPath, edenDataDir, envPath } = {}) {
   const db = openDatabase();
   migrate(db);
 
   const router = createRouter();
   registerGameRoutes(router, db, { fetchImpl });
-  registerSyncRoutes(router, db, { fetchImpl, epicAuthPath, gogDbPath });
+  registerSyncRoutes(router, db, { fetchImpl, epicAuthPath, gogDbPath, edenDataDir });
   registerSetupRoutes(router, { fetchImpl, epicAuthPath, envPath });
 
   // Nombre para personalizar el título ("Biblioteca de <nombre>"). Sale de

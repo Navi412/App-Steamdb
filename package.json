@@ -19,6 +19,7 @@
     "sync:xbox": "node --env-file-if-exists=.env xbox/cli.js",
     "sync:epic": "node --env-file-if-exists=.env epic/cli.js",
     "sync:gog": "node --env-file-if-exists=.env gog/run.js",
+    "sync:eden": "node --env-file-if-exists=.env eden/run.js",
     "epic:login": "node --env-file-if-exists=.env epic/cli.js login",
     "igdb": "node --env-file-if-exists=.env igdb/run.js",
     "electron": "electron .",

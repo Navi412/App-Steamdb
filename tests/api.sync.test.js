@@ -23,9 +23,18 @@ function noGalaxyPath() {
   return path.join(os.tmpdir(), 'steamdb-test-no-galaxy.db');
 }
 
-async function withServer(fn, { fetchImpl, epicAuthPath = tempEpicAuthPath(), gogDbPath = noGalaxyPath() } = {}) {
+// Carpeta de datos de Eden que no existe: sin esto la sync leería la
+// instalación real de Eden de la máquina donde corren los tests.
+function noEdenDataDir() {
+  return path.join(os.tmpdir(), 'steamdb-test-no-eden');
+}
+
+async function withServer(
+  fn,
+  { fetchImpl, epicAuthPath = tempEpicAuthPath(), gogDbPath = noGalaxyPath(), edenDataDir = noEdenDataDir() } = {}
+) {
   process.env.DB_PATH = tempDbPath();
-  const server = createServer({ fetchImpl, epicAuthPath, gogDbPath });
+  const server = createServer({ fetchImpl, epicAuthPath, gogDbPath, edenDataDir });
   await new Promise((resolve) => server.listen(0, resolve));
   const base = `http://localhost:${server.address().port}`;
   try {
@@ -100,9 +109,11 @@ test('POST /api/sync informa del resultado por launcher; Xbox/Epic sin configura
       assert.equal(body.launchers.xbox.ok, false);
       assert.equal(body.launchers.epic.ok, false);
       assert.equal(body.launchers.gog.ok, false);
+      assert.equal(body.launchers.eden.ok, false);
       assert.match(body.launchers.xbox.error, /OPENXBL_API_KEY/);
       assert.match(body.launchers.epic.error, /Epic/);
       assert.match(body.launchers.gog.error, /GOG Galaxy/);
+      assert.match(body.launchers.eden.error, /Eden/);
     }, { fetchImpl })
   );
 });
