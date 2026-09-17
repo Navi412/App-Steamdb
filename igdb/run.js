@@ -62,6 +62,7 @@ async function enrichGamesWithIgdb({
         mainMinutes: times.mainMinutes,
         completionistMinutes: times.completionistMinutes,
         coverUrl: chosen.coverUrl,
+        source: game.source,
       });
       stats.updated += 1;
       if (hasTimes(times)) {

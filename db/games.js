@@ -112,15 +112,24 @@ function updateGame(db, id, changes) {
 
 // Guarda el resultado de una búsqueda en IGDB (automática o corregida a
 // mano). igdbId se pasa siempre explícitamente, ya que una corrección
-// manual debe conservar el que ya había en vez de perderlo. coverUrl solo
-// se usa como último recurso (COALESCE): si el juego ya tiene icon_url
-// propio (Xbox, GOG, Epic...) o carátula de Steam/manual, esas mandan y
-// esto no las pisa.
-function setIgdbTimes(db, id, { igdbId, mainMinutes, completionistMinutes, coverUrl }) {
+// manual debe conservar el que ya había en vez de perderlo.
+//
+// coverUrl se trata distinto según el origen del juego:
+//  - Steam: icon_url no lo usa la UI para nada más (la carátula sale de
+//    steam_appid); aquí solo sirve como último recurso si library_600x900 y
+//    header.jpg fallan o son el placeholder gris que sirve Steam con 200 OK
+//    para juegos sin arte subido (visto con Battlefield 6). Por eso manda
+//    siempre que haya coverUrl, aunque ya hubiera algo (el hash de icono de
+//    Steam guardado por /sync, que además caduca con el tiempo).
+//  - resto de orígenes (Xbox, GOG, Epic...): icon_url SÍ es la carátula que
+//    pinta la UI, así que solo se rellena si está vacío (COALESCE) y nunca
+//    se pisa una que ya funciona.
+function setIgdbTimes(db, id, { igdbId, mainMinutes, completionistMinutes, coverUrl, source }) {
   const now = new Date().toISOString();
+  const iconUrlExpr = source === 'steam' ? 'COALESCE(?, icon_url)' : 'COALESCE(icon_url, ?)';
   db.prepare(
     `UPDATE games SET igdb_id = ?, igdb_main_minutes = ?, igdb_completionist_minutes = ?, igdb_updated_at = ?,
-       icon_url = COALESCE(icon_url, ?) WHERE id = ?`
+       icon_url = ${iconUrlExpr} WHERE id = ?`
   ).run(igdbId ?? null, mainMinutes ?? null, completionistMinutes ?? null, now, coverUrl ?? null, id);
   return getGameById(db, id);
 }

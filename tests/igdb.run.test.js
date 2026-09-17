@@ -159,6 +159,32 @@ test('un juego sin carátula propia (Eden/Switch) recibe la de IGDB', async () =
   );
 });
 
+test('un juego de Steam con icon_url caducado (el hash de /sync) sí se actualiza con la carátula de IGDB', async () => {
+  const db = tempDb();
+  const g = gamesDb.upsertExternalGame(db, {
+    source: 'steam',
+    externalId: '2807960',
+    title: 'Battlefield 6',
+    iconUrl: 'https://media.steampowered.com/steamcommunity/public/images/apps/2807960/stale.jpg',
+    platform: 'Steam',
+  });
+
+  const fetchImpl = fakeIgdb({
+    searchResults: {
+      'Battlefield 6': [
+        { id: 1, name: 'Battlefield 6', cover: { url: '//images.igdb.com/igdb/image/upload/t_thumb/bf6.jpg' } },
+      ],
+    },
+    timesByIgdbId: { 1: { hastily: 600 * 60, completely: 3000 * 60 } },
+  });
+
+  await enrichGamesWithIgdb({ db, ...cred, fetchImpl });
+  assert.equal(
+    gamesDb.getGameById(db, g.id).iconUrl,
+    'https://images.igdb.com/igdb/image/upload/t_cover_big/bf6.jpg'
+  );
+});
+
 test('un juego que ya tiene icon_url propio (Xbox, GOG...) no lo pierde por IGDB', async () => {
   const db = tempDb();
   const g = gamesDb.upsertExternalGame(db, {

@@ -39,6 +39,52 @@ function coverPosStyle(game) {
   return ` style="object-position:${x}% ${y}%"`;
 }
 
+// Steam sirve library_600x900.jpg y header.jpg con 200 OK aunque el
+// publisher no haya subido carátula (un rectángulo gris liso, visto con
+// Battlefield 6 recién lanzado) — un simple onerror no lo detecta porque la
+// petición "tiene éxito". Se comprueba dibujando la imagen ya cargada en un
+// canvas minúsculo: si todos los píxeles son casi el mismo color, se trata
+// como si hubiera fallado y se pasa al siguiente candidato.
+function isBlankCover(img) {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 8;
+    canvas.height = 8;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, 8, 8);
+    const { data } = ctx.getImageData(0, 0, 8, 8);
+    let min = 255;
+    let max = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const v = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    return max - min < 6;
+  } catch {
+    // Lienzo "contaminado" (el CDN no mandó CORS) u otro fallo: no se puede
+    // comprobar, así que se asume que la imagen cargada es válida.
+    return false;
+  }
+}
+
+// Prueba con el siguiente candidato de carátula (data-candidates, en JSON);
+// si ya no quedan, se rinde y muestra el hueco de reserva.
+function advanceCover(img) {
+  const candidates = JSON.parse(img.dataset.candidates || '[]');
+  const idx = Number(img.dataset.idx || 0) + 1;
+  if (idx >= candidates.length) {
+    img.parentElement.classList.add('cover-fallback');
+    return;
+  }
+  img.dataset.idx = idx;
+  img.src = candidates[idx];
+}
+
+function checkCoverLoaded(img) {
+  if (isBlankCover(img)) advanceCover(img);
+}
+
 function coverHtml(game, { size = '' } = {}) {
   const sizeClass = size ? ` cover-${size}` : '';
   const pos = coverPosStyle(game);
@@ -48,22 +94,25 @@ function coverHtml(game, { size = '' } = {}) {
     return `<span class="cover${sizeClass}"><img src="${escapeHtml(game.coverUrl)}" alt="" loading="lazy" draggable="false"${pos} onerror="this.parentElement.classList.add('cover-fallback')"></span>`;
   }
 
-  let primary = null;
-  let fallback = null;
+  // Steam: library_600x900 (arte de biblioteca, 2:3), luego header.jpg, y
+  // como último recurso la carátula de IGDB si la tenemos (ver setIgdbTimes
+  // en db/games.js). Resto de orígenes: directamente el icon_url que guardó
+  // la sync (Xbox, GOG, Epic...) o IGDB (manuales).
+  const candidates = [];
+  let checkBlank = false;
   if (game.steamAppId) {
     const base = `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.steamAppId}`;
-    primary = `${base}/library_600x900.jpg`;
-    fallback = `${base}/header.jpg`;
-  } else {
-    primary = normalizeIconUrl(game.iconUrl);
+    candidates.push(`${base}/library_600x900.jpg`, `${base}/header.jpg`);
+    checkBlank = true;
   }
+  const iconUrl = normalizeIconUrl(game.iconUrl);
+  if (iconUrl) candidates.push(iconUrl);
 
-  if (!primary) return `<span class="cover${sizeClass} cover-fallback"></span>`;
+  if (candidates.length === 0) return `<span class="cover${sizeClass} cover-fallback"></span>`;
 
-  const onError = fallback
-    ? `if(this.dataset.f){this.parentElement.classList.add('cover-fallback')}else{this.dataset.f=1;this.src='${fallback}'}`
-    : `this.parentElement.classList.add('cover-fallback')`;
-  return `<span class="cover${sizeClass}"><img src="${primary}" alt="" loading="lazy" draggable="false"${pos} onerror="${onError}"></span>`;
+  const dataCandidates = escapeHtml(JSON.stringify(candidates));
+  const extra = checkBlank ? ` crossorigin="anonymous" onload="checkCoverLoaded(this)"` : '';
+  return `<span class="cover${sizeClass}"><img src="${candidates[0]}" data-candidates="${dataCandidates}" data-idx="0" alt="" loading="lazy" draggable="false"${pos}${extra} onerror="advanceCover(this)"></span>`;
 }
 
 // El marcador de horas totales vive en ambas páginas (lista y detalle). La
