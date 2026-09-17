@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Capa de "primer plano" para el adaptive icon de Android: mismo mando
+       que icon.svg, sin fondo (Android compone su propio backgroundColor
+       detrás y recorta esta capa con la máscara que toque en cada launcher). -->
+  <rect x="152" y="372" width="720" height="280" rx="140" fill="#f4f8ff"/>
+  <rect x="317" y="447" width="46" height="130" rx="12" fill="#0a0e1a" fill-opacity="0.82"/>
+  <rect x="275" y="489" width="130" height="46" rx="12" fill="#0a0e1a" fill-opacity="0.82"/>
+  <circle cx="706" cy="462" r="34" fill="#0a0e1a" fill-opacity="0.82"/>
+  <circle cx="770" cy="526" r="34" fill="#0a0e1a" fill-opacity="0.82"/>
+</svg>
