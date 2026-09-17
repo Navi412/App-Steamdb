@@ -57,6 +57,14 @@ jobs:
           files: dist/*.exe
 
   android-apk:
+    needs: windows-installer
+    # En paralelo, los dos jobs suben (borran + reemplazan) assets a la
+    # misma Release a la vez; en una tag nueva no hay nada que borrar y
+    # cuela, pero al reintentar sobre una tag que ya tiene assets, softprops
+    # los pisa en momentos distintos y a veces chocan ("Error saving asset",
+    # visto en la re-ejecución de v0.1.5 tras el fix de Buffer). Con
+    # `needs` van en serie: tarda algo más, pero es release, no hace falta
+    # que sea rápido.
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el código
