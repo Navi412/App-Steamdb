@@ -126,6 +126,9 @@
         <button class="tab" data-tab="toplay" type="button">
           Lista de siguientes <span class="tab-count" id="toplay-count">0</span>
         </button>
+        <button class="tab" data-tab="playing" type="button">
+          Jugando ahora <span class="tab-count" id="playing-count">0</span>
+        </button>
       </div>
       <div class="tabs-actions">
         <button id="roulette-button" type="button" hidden>
@@ -149,11 +152,20 @@
     <ul id="games-list" class="shelf"></ul>
   </section>
 
-  <!-- Zona que aparece a la izquierda mientras arrastras un juego -->
+  <!-- Zonas que aparecen a los lados mientras arrastras un juego desde
+       "Mis juegos": izquierda para apartarlo, derecha para marcarlo como
+       jugando ahora mismo. -->
   <div id="drop-next" class="drop-next">
     <div class="drop-next-inner">
       <span class="drop-next-icon">＋</span>
       <span class="drop-next-label">Lista de siguientes</span>
+      <span class="drop-next-hint">suelta el juego aquí</span>
+    </div>
+  </div>
+  <div id="drop-playing" class="drop-next drop-next-right">
+    <div class="drop-next-inner">
+      <span class="drop-next-icon">🎮</span>
+      <span class="drop-next-label">Jugando ahora</span>
       <span class="drop-next-hint">suelta el juego aquí</span>
     </div>
   </div>

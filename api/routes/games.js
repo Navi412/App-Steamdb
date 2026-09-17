@@ -12,6 +12,7 @@ const { groupGames } = require('../../core/group-games');
 const gamesDb = require('../../db/games');
 const coversDb = require('../../db/covers');
 const toPlayDb = require('../../db/to-play');
+const playingNowDb = require('../../db/playing-now');
 const sessionsDb = require('../../db/sessions');
 const achievementsDb = require('../../db/achievements');
 const igdbClient = require('../../igdb/client');
@@ -147,6 +148,27 @@ function registerGameRoutes(router, db, { fetchImpl } = {}) {
 
   router.delete('/api/to-play/:gameId', (req, res, params) => {
     toPlayDb.remove(db, Number(params.gameId));
+    sendJson(res, 200, { ok: true });
+  });
+
+  // --- lista de "jugando ahora mismo" (mismo concepto, lista aparte) ---
+
+  router.post('/api/playing-now', async (req, res) => {
+    try {
+      const { gameId } = await readJsonBody(req);
+      const id = Number(gameId);
+      if (!Number.isInteger(id) || !gamesDb.getGameById(db, id)) {
+        return sendJson(res, 400, { error: 'juego no encontrado' });
+      }
+      playingNowDb.add(db, id);
+      sendJson(res, 200, { ok: true });
+    } catch (err) {
+      sendJson(res, 400, { error: err.message });
+    }
+  });
+
+  router.delete('/api/playing-now/:gameId', (req, res, params) => {
+    playingNowDb.remove(db, Number(params.gameId));
     sendJson(res, 200, { ok: true });
   });
 

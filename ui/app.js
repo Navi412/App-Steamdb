@@ -49,22 +49,32 @@ function refreshPlatformOptions() {
   select.value = platforms.includes(current) ? current : '';
 }
 
-// 'all' = toda la biblioteca; 'toplay' = solo la lista de siguientes.
+// 'all' = toda la biblioteca; 'toplay' = lista de siguientes; 'playing' =
+// jugando ahora mismo (listas independientes, ver db/to-play.js y
+// db/playing-now.js).
 let currentTab = 'all';
+
+const TAB_FILTERS = {
+  toplay: (g) => g.inToPlay,
+  playing: (g) => g.inPlayingNow,
+};
+const TAB_EMPTY_MESSAGES = {
+  toplay: 'Tu lista está vacía. Arrastra juegos aquí desde «Mis juegos».',
+  playing: 'No estás jugando nada ahora mismo. Arrastra un juego aquí desde «Mis juegos».',
+};
+// Endpoint que quita un juego de la lista de la pestaña actual (botón "×").
+const TAB_REMOVE_ENDPOINT = { toplay: 'to-play', playing: 'playing-now' };
 
 function applyView() {
   const term = document.getElementById('search-input').value.trim().toLowerCase();
   const platform = document.getElementById('platform-filter').value;
   const sort = document.getElementById('sort-order').value;
 
-  let games = currentTab === 'toplay' ? allGames.filter((g) => g.inToPlay) : allGames;
+  let games = TAB_FILTERS[currentTab] ? allGames.filter(TAB_FILTERS[currentTab]) : allGames;
   if (term) games = games.filter((g) => g.title.toLowerCase().includes(term));
   if (platform) games = games.filter((g) => (g.platforms || [g.platform]).includes(platform));
 
-  const empty =
-    currentTab === 'toplay'
-      ? 'Tu lista está vacía. Arrastra juegos aquí desde «Mis juegos».'
-      : 'Ningún juego coincide con la búsqueda.';
+  const empty = TAB_EMPTY_MESSAGES[currentTab] || 'Ningún juego coincide con la búsqueda.';
 
   renderGames([...games].sort(SORTERS[sort] || SORTERS.title), empty);
 }
@@ -90,6 +100,7 @@ function caseHtml(game) {
       <span class="case-gloss" aria-hidden="true"></span>
       ${game.missingSince ? '<span class="case-flag">fuera de Steam</span>' : ''}
       ${game.inToPlay && currentTab !== 'toplay' ? '<span class="case-next" title="En tu lista de siguientes">▶</span>' : ''}
+      ${game.inPlayingNow && currentTab !== 'playing' ? '<span class="case-playing" title="Jugando ahora">🎮</span>' : ''}
       <span class="case-label">${escapeHtml(game.title)}</span>
       <span class="case-info">
         <span class="case-info-title">${escapeHtml(game.title)}</span>
@@ -108,12 +119,12 @@ function renderGames(games, emptyMessage) {
     return;
   }
 
+  const removeEndpoint = TAB_REMOVE_ENDPOINT[currentTab];
   list.innerHTML = games
     .map((game, i) => {
-      const remove =
-        currentTab === 'toplay'
-          ? `<button class="case-remove" type="button" data-remove="${game.id}" title="Quitar de la lista">×</button>`
-          : '';
+      const remove = removeEndpoint
+        ? `<button class="case-remove" type="button" data-remove-endpoint="${removeEndpoint}" data-remove="${game.id}" title="Quitar de la lista">×</button>`
+        : '';
       return `<li class="case-slot${game.archived ? ' archived' : ''}" style="--i:${Math.min(i, 40)}">${caseHtml(game)}${remove}</li>`;
     })
     .join('');
@@ -125,6 +136,7 @@ async function refreshGames() {
 
   const nextCount = allGames.filter((g) => g.inToPlay).length;
   document.getElementById('toplay-count').textContent = nextCount;
+  document.getElementById('playing-count').textContent = allGames.filter((g) => g.inPlayingNow).length;
   const roulette = document.getElementById('roulette-button');
   roulette.disabled = nextCount === 0;
   roulette.hidden = currentTab !== 'toplay';
@@ -145,8 +157,11 @@ document.querySelectorAll('.tab').forEach((tab) => {
   });
 });
 
-// --- arrastrar un juego a la "Lista de siguientes" ---
-const dropNext = document.getElementById('drop-next');
+// --- arrastrar un juego a "Lista de siguientes" o "Jugando ahora" ---
+const dropZones = [
+  { el: document.getElementById('drop-next'), endpoint: 'to-play' },
+  { el: document.getElementById('drop-playing'), endpoint: 'playing-now' },
+];
 const gamesList = document.getElementById('games-list');
 
 gamesList.addEventListener('dragstart', (event) => {
@@ -155,42 +170,44 @@ gamesList.addEventListener('dragstart', (event) => {
   event.dataTransfer.setData('text/plain', card.dataset.id);
   event.dataTransfer.effectAllowed = 'copy';
   document.body.classList.add('dragging-game');
-  // solo tiene sentido añadir a la lista desde "Mis juegos"
-  if (currentTab === 'all') dropNext.classList.add('show');
+  // solo tiene sentido apartarlo/marcarlo desde "Mis juegos"
+  if (currentTab === 'all') dropZones.forEach(({ el }) => el.classList.add('show'));
 });
 
 gamesList.addEventListener('dragend', () => {
   document.body.classList.remove('dragging-game');
-  dropNext.classList.remove('show', 'is-over');
+  dropZones.forEach(({ el }) => el.classList.remove('show', 'is-over'));
 });
 
-dropNext.addEventListener('dragover', (event) => {
-  event.preventDefault();
-  event.dataTransfer.dropEffect = 'copy';
-  dropNext.classList.add('is-over');
-});
-dropNext.addEventListener('dragleave', () => dropNext.classList.remove('is-over'));
-dropNext.addEventListener('drop', async (event) => {
-  event.preventDefault();
-  const id = Number(event.dataTransfer.getData('text/plain'));
-  dropNext.classList.remove('show', 'is-over');
-  document.body.classList.remove('dragging-game');
-  if (!id) return;
-  try {
-    await submitJson('/api/to-play', 'POST', { gameId: id });
-    await refreshGames();
-  } catch (err) {
-    alert(err.message);
-  }
-});
+for (const { el, endpoint } of dropZones) {
+  el.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    el.classList.add('is-over');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('is-over'));
+  el.addEventListener('drop', async (event) => {
+    event.preventDefault();
+    const id = Number(event.dataTransfer.getData('text/plain'));
+    dropZones.forEach(({ el: z }) => z.classList.remove('show', 'is-over'));
+    document.body.classList.remove('dragging-game');
+    if (!id) return;
+    try {
+      await submitJson(`/api/${endpoint}`, 'POST', { gameId: id });
+      await refreshGames();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+}
 
-// --- quitar de la lista (botón "×" en la pestaña de siguientes) ---
+// --- quitar de la lista (botón "×" en las pestañas de siguientes / jugando) ---
 gamesList.addEventListener('click', async (event) => {
   const btn = event.target.closest('.case-remove');
   if (!btn) return;
   event.preventDefault();
   try {
-    await submitJson(`/api/to-play/${btn.dataset.remove}`, 'DELETE', {});
+    await submitJson(`/api/${btn.dataset.removeEndpoint}/${btn.dataset.remove}`, 'DELETE', {});
     await refreshGames();
   } catch (err) {
     alert(err.message);

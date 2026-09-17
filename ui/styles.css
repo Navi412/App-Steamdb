@@ -787,7 +787,26 @@ button:disabled { opacity: 0.5; cursor: default; }
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
-/* Botón para quitar de la lista (solo en la pestaña de siguientes) */
+/* Marca "lo estás jugando ahora mismo". Abajo a la derecha (no arriba, que
+   ya lo ocupan case-next y, con el ratón encima, case-remove). */
+.case-playing {
+  position: absolute;
+  z-index: 3;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  color: #2a1a06;
+  background: var(--gold);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+/* Botón para quitar de la lista (solo en las pestañas de siguientes / jugando) */
 .case-remove {
   position: absolute;
   z-index: 6;
@@ -1025,6 +1044,25 @@ li.achievement .unlocked-at { margin-left: auto; font-size: 0.72rem; }
 .drop-next.is-over {
   background: rgba(124, 196, 255, 0.18);
   border-color: var(--accent);
+}
+/* Misma zona, en espejo, para "jugando ahora" (entra desde la derecha). */
+.drop-next-right {
+  left: auto;
+  right: 0;
+  border-radius: 22px 0 0 22px;
+  border-left: 1px solid var(--stroke-strong);
+  border-right: 0;
+  transform: translateX(100%);
+}
+.drop-next-right.show { transform: translateX(0); }
+.drop-next-right .drop-next-icon { color: var(--gold); }
+.drop-next-right.is-over {
+  background: rgba(255, 211, 122, 0.18);
+  border-color: var(--gold);
+}
+.drop-next-right.is-over .drop-next-inner {
+  border-color: var(--gold);
+  background: rgba(255, 211, 122, 0.08);
 }
 .drop-next-inner {
   pointer-events: none;

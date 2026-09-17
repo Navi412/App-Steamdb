@@ -350,6 +350,38 @@ test('POST /api/to-play con un juego inexistente da 400', async () => {
   });
 });
 
+test('jugando ahora: POST /api/playing-now marca inPlayingNow, DELETE lo quita, y es independiente de la lista de siguientes', async () => {
+  await withServer(async (base) => {
+    const game = await (await postJson(base, '/api/games', { title: 'Hades', platform: 'PC' })).json();
+
+    let list = await (await fetch(`${base}/api/games`)).json();
+    assert.equal(list[0].inPlayingNow, false);
+
+    const add = await postJson(base, '/api/playing-now', { gameId: game.id });
+    assert.equal(add.status, 200);
+
+    // estar "jugando ahora" no lo mete en la lista de siguientes, ni viceversa
+    list = await (await fetch(`${base}/api/games`)).json();
+    assert.equal(list[0].inPlayingNow, true);
+    assert.equal(list[0].inToPlay, false);
+
+    // idempotente: añadir dos veces no falla
+    assert.equal((await postJson(base, '/api/playing-now', { gameId: game.id })).status, 200);
+
+    const del = await fetch(`${base}/api/playing-now/${game.id}`, { method: 'DELETE' });
+    assert.equal(del.status, 200);
+
+    list = await (await fetch(`${base}/api/games`)).json();
+    assert.equal(list[0].inPlayingNow, false);
+  });
+});
+
+test('POST /api/playing-now con un juego inexistente da 400', async () => {
+  await withServer(async (base) => {
+    assert.equal((await postJson(base, '/api/playing-now', { gameId: 9999 })).status, 400);
+  });
+});
+
 test('GET /api/profile: nombre de USER_NAME recortado, o null si no está', async () => {
   const prev = process.env.USER_NAME;
   try {
