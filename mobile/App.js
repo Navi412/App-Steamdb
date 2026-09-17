@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Linking,
   Pressable,
   StatusBar,
   StyleSheet,
@@ -57,6 +58,20 @@ try {
   bootError = err;
 }
 
+// URLs de donde se saca cada credencial, igual que setup/fields.js (el
+// wizard de escritorio) pero duplicadas aquí: fields.js está pensado para
+// recorrerse desde una terminal, y el móvil solo necesita los enlaces.
+const HELP_URLS = {
+  steamApiKey: 'https://steamcommunity.com/dev/apikey',
+  steamProfile: 'https://steamcommunity.com/my/',
+  openxbl: 'https://xbl.io/',
+  epic: 'https://www.epicgames.com/id/api/redirect?clientId=34a02cf8f4414e29b15921876da36f9a&responseType=code',
+};
+
+function openHelpUrl(url) {
+  Linking.openURL(url).catch(() => {});
+}
+
 // Igual que setup/validate.js -> extractEpicCode, duplicado aquí en vez de
 // importado: ese módulo también carga epic/file-auth-store.js (node:fs),
 // que Metro no sabe empaquetar.
@@ -100,6 +115,18 @@ function formatHours(minutes) {
   return `${(minutes / 60).toFixed(1)} h`;
 }
 
+// Botón junto a cada campo de credencial: abre en el navegador la página
+// exacta de donde se saca ese valor, para que rellenar Ajustes no dependa
+// de saber ya dónde buscar (mismo espíritu que `setup/open-url.js` en
+// escritorio, pero como botón en vez de paso automático de un wizard).
+function GetItButton({ label, url }) {
+  return (
+    <Pressable style={styles.getItButton} onPress={() => openHelpUrl(url)}>
+      <Text style={styles.getItButtonText}>{label} ↗</Text>
+    </Pressable>
+  );
+}
+
 export default function App() {
   const [db, setDb] = useState(null);
   const [view, setView] = useState('library');
@@ -124,11 +151,17 @@ export default function App() {
     try {
       const database = openDatabase();
       migrate(database);
-      setApiKey(settingsDb.getSetting(database, 'steamApiKey') || '');
-      setSteamId(settingsDb.getSetting(database, 'steamId') || '');
+      const savedApiKey = settingsDb.getSetting(database, 'steamApiKey') || '';
+      const savedSteamId = settingsDb.getSetting(database, 'steamId') || '';
+      setApiKey(savedApiKey);
+      setSteamId(savedSteamId);
       setXboxApiKey(settingsDb.getSetting(database, 'openxblApiKey') || '');
       setEpicAccountId(epicAuthStore(database).load()?.accountId || null);
       setDb(database);
+      // Primer arranque (todavía sin Steam configurado): ir directo a
+      // Ajustes en vez de a una biblioteca vacía, para que lo primero que
+      // vea quien instala la app sean los botones para conseguir sus claves.
+      if (!savedApiKey || !savedSteamId) setView('settings');
     } catch (err) {
       setError(err.message);
     }
@@ -268,19 +301,30 @@ export default function App() {
   }
 
   if (view === 'settings') {
+    const firstRun = !apiKey || !steamId;
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
         <Text style={styles.kicker}>AJUSTES</Text>
         <Text style={styles.title}>Cuentas</Text>
 
+        {firstRun && (
+          <Text style={styles.intro}>
+            Para sincronizar hace falta al menos Steam. Pulsa el botón junto a cada campo:
+            te lleva a la página exacta donde se consigue, cópialo y pégalo aquí.
+          </Text>
+        )}
+
         {error && <Text style={styles.error}>{error}</Text>}
 
         <Text style={styles.sectionLabel}>Steam</Text>
-        <Text style={styles.label}>Steam API Key</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Steam API Key</Text>
+          <GetItButton label="Conseguir clave" url={HELP_URLS.steamApiKey} />
+        </View>
         <TextInput
           style={styles.input}
-          placeholder="https://steamcommunity.com/dev/apikey"
+          placeholder="Pega aquí la clave"
           placeholderTextColor={COLORS.textMuted}
           value={apiKey}
           onChangeText={setApiKey}
@@ -288,7 +332,10 @@ export default function App() {
           autoCorrect={false}
         />
 
-        <Text style={styles.label}>SteamID64</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>SteamID64</Text>
+          <GetItButton label="Ver mi perfil" url={HELP_URLS.steamProfile} />
+        </View>
         <TextInput
           style={styles.input}
           placeholder="76561198..."
@@ -300,11 +347,14 @@ export default function App() {
           keyboardType="number-pad"
         />
 
-        <Text style={styles.sectionLabel}>Xbox</Text>
-        <Text style={styles.label}>OpenXBL API Key</Text>
+        <Text style={styles.sectionLabel}>Xbox (opcional)</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>OpenXBL API Key</Text>
+          <GetItButton label="Conseguir clave" url={HELP_URLS.openxbl} />
+        </View>
         <TextInput
           style={styles.input}
-          placeholder="https://xbl.io/console"
+          placeholder="Pega aquí la clave"
           placeholderTextColor={COLORS.textMuted}
           value={xboxApiKey}
           onChangeText={setXboxApiKey}
@@ -312,12 +362,19 @@ export default function App() {
           autoCorrect={false}
         />
 
-        <Text style={styles.sectionLabel}>Epic Games</Text>
-        <Text style={styles.label}>
-          {epicAccountId
-            ? `Conectado (cuenta ${epicAccountId}).`
-            : 'Con sesión abierta en epicgames.com, visita la URL de redirección del launcher y pega aquí el authorizationCode (o el JSON entero).'}
-        </Text>
+        <Text style={styles.sectionLabel}>Epic Games (opcional)</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>
+            {epicAccountId ? `Conectado (cuenta ${epicAccountId}).` : 'Código de un solo uso'}
+          </Text>
+          <GetItButton label="Abrir página de Epic" url={HELP_URLS.epic} />
+        </View>
+        {!epicAccountId && (
+          <Text style={styles.hint}>
+            Con sesión abierta en epicgames.com, pulsa el botón de arriba y copia lo que
+            aparece entre comillas después de authorizationCode (o pega el texto entero).
+          </Text>
+        )}
         <View style={styles.addRow}>
           <TextInput
             style={styles.input}
@@ -338,9 +395,11 @@ export default function App() {
         </View>
 
         <View style={styles.settingsButtons}>
-          <Pressable style={styles.secondaryButton} onPress={() => setView('library')}>
-            <Text style={styles.secondaryButtonText}>Cancelar</Text>
-          </Pressable>
+          {!firstRun && (
+            <Pressable style={styles.secondaryButton} onPress={() => setView('library')}>
+              <Text style={styles.secondaryButtonText}>Cancelar</Text>
+            </Pressable>
+          )}
           <Pressable style={styles.addButton} onPress={onSaveSettings}>
             <Text style={styles.addButtonText}>Guardar</Text>
           </Pressable>
@@ -468,11 +527,43 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 20,
   },
+  intro: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 8,
+  },
   label: {
     color: COLORS.textMuted,
     fontSize: 13,
     marginBottom: 6,
     marginTop: 12,
+    flexShrink: 1,
+  },
+  hint: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  getItButton: {
+    backgroundColor: COLORS.glass,
+    borderWidth: 1,
+    borderColor: COLORS.stroke,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  getItButtonText: {
+    color: COLORS.accent,
+    fontSize: 12,
+    fontWeight: '700',
   },
   error: {
     color: COLORS.danger,
