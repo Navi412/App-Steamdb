@@ -273,6 +273,100 @@ document.getElementById('search-input').addEventListener('input', applyView);
 document.getElementById('platform-filter').addEventListener('change', applyView);
 document.getElementById('sort-order').addEventListener('change', applyView);
 
+// --- sonido de la ruleta: sintetizado con Web Audio, sin archivos de
+// audio de por medio (mismo espíritu que "sin dependencias innecesarias").
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// Clic corto (como el chasquido de una ruleta física al pasar un sector).
+function playTick(gain = 1) {
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.value = 820 + Math.random() * 70;
+  g.gain.setValueAtTime(0.15 * gain, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.045);
+  osc.connect(g).connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.05);
+}
+
+// Acorde ascendente corto al parar, como un pequeño "¡tachán!" de resultado.
+function playResultChime() {
+  const ctx = getAudioCtx();
+  [523.25, 659.25, 783.99].forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    const start = ctx.currentTime + i * 0.07;
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(0.18, start + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.5);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.55);
+  });
+}
+
+// Evalúa el mismo cubic-bezier que la transición CSS de .wheel (ver
+// styles.css) para saber, en fracción de tiempo [0,1], cuándo pasa la rueda
+// por cada sector — así los clics coinciden con el giro que se ve en
+// pantalla en vez de sonar a un ritmo inventado aparte.
+const WHEEL_DURATION_MS = 4600; // debe coincidir con la transición de .wheel
+const WHEEL_EASE_SAMPLES = (() => {
+  const p1 = [0.12, 0.85];
+  const p2 = [0.18, 1];
+  const steps = 400;
+  const samples = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const mt = 1 - t;
+    const x = 3 * mt * mt * t * p1[0] + 3 * mt * t * t * p2[0] + t * t * t;
+    const y = 3 * mt * mt * t * p1[1] + 3 * mt * t * t * p2[1] + t * t * t;
+    samples.push([x, y]);
+  }
+  return samples;
+})();
+
+function timeFractionForProgress(targetY) {
+  for (let i = 1; i < WHEEL_EASE_SAMPLES.length; i++) {
+    const [x0, y0] = WHEEL_EASE_SAMPLES[i - 1];
+    const [x1, y1] = WHEEL_EASE_SAMPLES[i];
+    if (targetY <= y1 || i === WHEEL_EASE_SAMPLES.length - 1) {
+      const frac = y1 === y0 ? 0 : (targetY - y0) / (y1 - y0);
+      return x0 + (x1 - x0) * frac;
+    }
+  }
+  return 1;
+}
+
+let wheelTickTimers = [];
+function clearWheelTickTimers() {
+  wheelTickTimers.forEach(clearTimeout);
+  wheelTickTimers = [];
+}
+
+// Programa un playTick() por cada separador que la rueda va a cruzar
+// durante este giro, en el instante exacto (según la curva de frenado de
+// arriba) en que la aguja lo toca.
+function scheduleWheelTicks(deltaDeg, seg) {
+  clearWheelTickTimers();
+  const totalSeps = Math.floor(deltaDeg / seg);
+  for (let k = 1; k <= totalSeps; k++) {
+    const x = timeFractionForProgress((k * seg) / deltaDeg);
+    const ms = x * WHEEL_DURATION_MS;
+    // Los últimos clics (rueda casi parada) suenan un poco más suaves.
+    const gain = k > totalSeps - 4 ? 0.7 : 1;
+    wheelTickTimers.push(setTimeout(() => playTick(gain), ms));
+  }
+}
+
 // --- ruleta: elige al azar el próximo juego de la lista de siguientes ---
 const rouletteModal = document.getElementById('roulette-modal');
 const wheel = document.getElementById('wheel');
@@ -339,6 +433,7 @@ function openRoulette() {
 
 function closeRoulette() {
   rouletteModal.hidden = true;
+  clearWheelTickTimers();
 }
 
 function spinWheel() {
@@ -352,6 +447,7 @@ function spinWheel() {
   // La aguja del brazo toca el disco a las 3 en punto (90° desde arriba).
   const NEEDLE_DEG = 90;
   const targetMod = (((NEEDLE_DEG - (pick * seg + seg / 2 + jitter)) % 360) + 360) % 360;
+  const startDeg = wheelRotation;
   let rot = wheelRotation - (wheelRotation % 360) + targetMod;
   while (rot < wheelRotation + 360 * 6) rot += 360;
   wheelRotation = rot;
@@ -360,11 +456,17 @@ function spinWheel() {
   wheelGo.hidden = true;
   wheelResult.textContent = 'Girando…';
 
+  const noAnim = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  playTick(1.3); // chasquido inicial, como al tirar de la palanca
+  if (!noAnim) scheduleWheelTicks(rot - startDeg, seg);
+
   let done = false;
   const finish = () => {
     if (done) return;
     done = true;
     wheelSpinning = false;
+    clearWheelTickTimers();
+    playResultChime();
     const g = wheelGames[pick];
     wheelResult.innerHTML = `Te toca jugar a <strong>${escapeHtml(g.title)}</strong>`;
     wheelGo.href = `/game.html?id=${g.id}`;
@@ -373,7 +475,6 @@ function spinWheel() {
     wheelSpin.textContent = 'Girar otra vez';
   };
   wheel.addEventListener('transitionend', finish, { once: true });
-  const noAnim = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   setTimeout(finish, noAnim ? 350 : 5200); // sin transición o si se pierde el evento
 
   wheel.style.transform = `rotate(${rot}deg)`;

@@ -166,6 +166,8 @@ const THEMES = [
   { id: 'aurora', name: 'Aurora', preview: 'linear-gradient(135deg, #06120f, #4be3b0, #38bdf8)' },
   { id: 'amber', name: 'Ámbar', preview: 'linear-gradient(135deg, #170d08, #ffb454, #ff7a59)' },
   { id: 'light', name: 'Claro', preview: 'linear-gradient(135deg, #f3f5fb, #2f7dd1, #7c5cff)' },
+  { id: 'tavern', name: 'Taberna', preview: 'linear-gradient(135deg, #1b1108, #e0a458, #c1440e)' },
+  { id: 'space', name: 'Espacio', preview: 'linear-gradient(135deg, #050611, #7cf9ff, #b06bff)' },
 ];
 const THEME_KEY = 'sdb-theme';
 const BG_IMAGE_KEY = 'sdb-bg-image';

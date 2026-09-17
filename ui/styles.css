@@ -29,6 +29,10 @@
   --glow-3: rgba(96, 130, 255, 0.12);
   --h1-grad: linear-gradient(120deg, #ffffff, #b9d4ff 55%, #c8bcff);
   --bg-image: none;
+  /* Textura decorativa opcional del tema (estrellas, vetas de madera...),
+     ver temas "tavern" y "space" más abajo. 'none' no pinta nada. */
+  --texture: none;
+  --texture-size: auto;
 
   --font: 'Segoe UI Variable', 'Segoe UI', -apple-system, BlinkMacSystemFont,
     Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif;
@@ -125,6 +129,60 @@ html[data-theme='light'] {
   --h1-grad: linear-gradient(120deg, #1c2333, #2f7dd1 55%, #7c5cff);
 }
 
+/* Taberna: madera oscura y luz de vela, en vez de los cristales azulados
+   del resto de temas. Las vetas son un repeating-linear-gradient (sin
+   ninguna imagen de por medio). */
+html[data-theme='tavern'] {
+  --bg: #1b1108;
+  --glass: rgba(255, 205, 140, 0.055);
+  --glass-strong: rgba(255, 205, 140, 0.095);
+  --glass-hover: rgba(255, 205, 140, 0.13);
+  --stroke: rgba(255, 205, 140, 0.15);
+  --stroke-strong: rgba(255, 205, 140, 0.26);
+  --text: #f2ddbb;
+  --text-muted: #ad8862;
+  --accent: #e0a458;
+  --accent-2: #c1440e;
+  --gold: #ffd37a;
+  --danger: #ff6b52;
+  --ok: #b7d66b;
+  --glow-1: rgba(224, 164, 88, 0.22);
+  --glow-2: rgba(193, 68, 14, 0.16);
+  --glow-3: rgba(120, 80, 40, 0.18);
+  --h1-grad: linear-gradient(120deg, #ffe9c7, #e0a458 55%, #c1440e);
+  --texture: repeating-linear-gradient(112deg, rgba(0, 0, 0, 0.1) 0 3px, transparent 3px 9px);
+}
+
+/* Espacio: casi negro con nebulosas de neón y un campo de estrellas hecho
+   a base de radial-gradients diminutos, tampoco con imágenes. */
+html[data-theme='space'] {
+  --bg: #050611;
+  --glass: rgba(140, 170, 255, 0.05);
+  --glass-strong: rgba(140, 170, 255, 0.09);
+  --glass-hover: rgba(140, 170, 255, 0.13);
+  --stroke: rgba(140, 170, 255, 0.14);
+  --stroke-strong: rgba(140, 170, 255, 0.26);
+  --text: #e6ecff;
+  --text-muted: #7c86b8;
+  --accent: #7cf9ff;
+  --accent-2: #b06bff;
+  --gold: #ffe37a;
+  --danger: #ff5c8a;
+  --ok: #6bffb0;
+  --glow-1: rgba(124, 249, 255, 0.17);
+  --glow-2: rgba(176, 107, 255, 0.19);
+  --glow-3: rgba(60, 90, 200, 0.15);
+  --h1-grad: linear-gradient(120deg, #ffffff, #7cf9ff 55%, #b06bff);
+  --texture:
+    radial-gradient(1px 1px at 15% 25%, rgba(255, 255, 255, 0.9), transparent 60%),
+    radial-gradient(1px 1px at 65% 70%, rgba(255, 255, 255, 0.75), transparent 60%),
+    radial-gradient(1.5px 1.5px at 40% 88%, rgba(255, 255, 255, 0.85), transparent 60%),
+    radial-gradient(1px 1px at 85% 15%, rgba(255, 255, 255, 0.65), transparent 60%),
+    radial-gradient(1px 1px at 25% 55%, rgba(255, 255, 255, 0.55), transparent 60%),
+    radial-gradient(1.5px 1.5px at 92% 45%, rgba(255, 255, 255, 0.75), transparent 60%);
+  --texture-size: 200px 200px;
+}
+
 * { box-sizing: border-box; }
 
 html {
@@ -182,6 +240,7 @@ body::before {
   inset: 0;
   z-index: -1;
   background:
+    var(--texture) 0 0 / var(--texture-size) repeat,
     radial-gradient(60rem 40rem at 12% -10%, var(--glow-1), transparent 60%),
     radial-gradient(50rem 40rem at 100% 0%, var(--glow-2), transparent 55%),
     radial-gradient(45rem 45rem at 50% 120%, var(--glow-3), transparent 60%),
@@ -193,6 +252,7 @@ body::before {
    oscuro para que el texto siga siendo legible encima de la foto. */
 html.has-bg-image body::before {
   background:
+    var(--texture) 0 0 / var(--texture-size) repeat,
     linear-gradient(rgba(4, 6, 12, 0.58), rgba(4, 6, 12, 0.58)),
     radial-gradient(60rem 40rem at 12% -10%, var(--glow-1), transparent 60%),
     radial-gradient(50rem 40rem at 100% 0%, var(--glow-2), transparent 55%),
