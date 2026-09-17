@@ -47,7 +47,7 @@ jobs:
         run: npm run dist -- --publish never
 
       - name: Publicar en Releases
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: Backlog ${{ github.event.inputs.tag || github.ref_name }}
@@ -111,7 +111,7 @@ jobs:
           ./gradlew assembleRelease
 
       - name: Publicar en Releases
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: Backlog ${{ github.event.inputs.tag || github.ref_name }}
