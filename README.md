@@ -66,6 +66,9 @@ abajo.
 Solo Steam es imprescindible; Xbox y Epic son opcionales y se pueden dejar
 en blanco.
 
+<details>
+<summary>¿Eres desarrollador o usas macOS/Linux? Instalación desde el código fuente</summary>
+
 ## Requisitos (código fuente)
 
 - **Node.js 24 o superior** — la app usa el módulo nativo `node:sqlite` sin
@@ -180,3 +183,5 @@ derivación de sesiones y los casos límite. Resumen de carpetas:
 /setup  asistente de configuración (npm run setup).
 /electron  ventana nativa que arranca /api.
 ```
+
+</details>
