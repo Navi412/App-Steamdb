@@ -1,10 +1,15 @@
 # Backlog
 
-Registro personal de videojuegos y horas jugadas. Sincroniza automáticamente
-tu biblioteca de **Steam** (y, opcionalmente, **Xbox / Game Pass** y **Epic
-Games**) y te deja añadir a mano los juegos del resto de plataformas. Como
-Steam solo expone un contador acumulado de horas, la app guarda instantáneas
-periódicas y **deriva** de la diferencia cuánto jugaste en cada intervalo.
+Siempre me picó la curiosidad por saber cuántas horas sumaba en total entre
+todos mis videojuegos, pero cada launcher las guarda por su lado y no hay
+forma de juntarlas. Backlog nació de eso: un sitio único donde ver tu
+biblioteca y tus horas jugadas, vengan de Steam, Xbox, Epic o de donde sea.
+
+Sincroniza automáticamente tu biblioteca de **Steam** (y, opcionalmente,
+**Xbox / Game Pass** y **Epic Games**) y te deja añadir a mano los juegos
+del resto de plataformas. Como Steam solo da un contador acumulado, la app
+guarda fotos periódicas de ese contador y calcula sola cuánto jugaste en
+cada intervalo.
 
 A cualquier juego se le puede poner una **carátula propia** (subir una
 imagen o pegar una URL), tanto al crearlo como después desde su ficha; se
