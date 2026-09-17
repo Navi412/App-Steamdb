@@ -14,7 +14,12 @@ guarda en la base de datos y manda sobre el arte de la tienda.
   <a href="https://github.com/Navi412/App-Steamdb/releases/latest">
     <img src="https://img.shields.io/github/v/release/Navi412/App-Steamdb?sort=semver&display_name=release&label=Descargar%20para%20Windows&logo=windows&color=2ea44f&style=for-the-badge" alt="Descargar para Windows">
   </a>
+  <a href="https://github.com/Navi412/App-Steamdb/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Navi412/App-Steamdb?sort=semver&display_name=release&label=Descargar%20para%20Android&logo=android&color=3DDC84&style=for-the-badge" alt="Descargar para Android">
+  </a>
 </p>
+
+<p align="center"><i>¿PC o móvil? Los dos botones bajan de la misma release, elige el tuyo.</i></p>
 
 ## Descargar la app de escritorio (Windows)
 
@@ -43,8 +48,23 @@ sobreviven a instalar una versión nueva encima. Si vienes de una versión
 anterior de la app (se llamaba **SteamDB**), tus datos se copian solos la
 primera vez que abras esta.
 
-Solo hay instalador para Windows por ahora. En macOS/Linux, sigue la vía de
-código fuente de abajo.
+En macOS/Linux no hay instalador todavía: sigue la vía de código fuente de
+abajo.
+
+## Descargar la app para el móvil (Android)
+
+1. Abre **[la última release](https://github.com/Navi412/App-Steamdb/releases/latest)**
+   y descarga `app-release.apk` (en la sección **Assets**).
+2. Ábrelo desde Descargas. Android avisará de que viene de un origen
+   desconocido (normal, no está en Google Play): pulsa **Instalar de
+   todas formas** o **Permitir esta vez**.
+3. La primera vez que abras la app te lleva directo a **Ajustes**: junto a
+   cada campo (Steam, y si quieres también Xbox o Epic) hay un botón que te
+   lleva a la página exacta donde se consigue esa clave, para copiarla y
+   pegarla ahí mismo.
+
+Solo Steam es imprescindible; Xbox y Epic son opcionales y se pueden dejar
+en blanco.
 
 ## Requisitos (código fuente)
 
