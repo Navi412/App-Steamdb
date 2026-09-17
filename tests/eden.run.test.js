@@ -111,6 +111,34 @@ test('informa de los archivos descartados por no traer un id de título reconoci
   assert.deepEqual(result.skippedFiles, ['readme.nsp']);
 });
 
+test('una segunda sync no borra la carátula que había rellenado IGDB (Eden nunca trae icono propio)', (t) => {
+  const db = tempDb();
+  const state = { games: [{ edenId: '0100ECD018EBE000', title: 'Paper Mario', minutes: 13, lastPlayed: null }] };
+  t.after(stubLibrary(state));
+
+  runEdenSync({ db });
+  const game = gamesDb.getGameByExternalId(db, 'eden', '0100ECD018EBE000');
+  gamesDb.setIgdbTimes(db, game.id, {
+    igdbId: 3349,
+    mainMinutes: 1500,
+    completionistMinutes: 3000,
+    coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/paper-mario.jpg',
+    source: 'eden',
+  });
+  assert.equal(
+    gamesDb.getGameById(db, game.id).iconUrl,
+    'https://images.igdb.com/igdb/image/upload/t_cover_big/paper-mario.jpg'
+  );
+
+  state.games[0].minutes = 20; // el usuario le da a "Sincronizar" otra vez
+  runEdenSync({ db });
+
+  assert.equal(
+    gamesDb.getGameById(db, game.id).iconUrl,
+    'https://images.igdb.com/igdb/image/upload/t_cover_big/paper-mario.jpg'
+  );
+});
+
 test('un fallo leyendo la carpeta de Eden se registra en sync_runs y se propaga', (t) => {
   const db = tempDb();
   const original = edenClient.readEdenLibrary;

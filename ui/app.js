@@ -65,6 +65,14 @@ const TAB_EMPTY_MESSAGES = {
 // Endpoint que quita un juego de la lista de la pestaña actual (botón "×").
 const TAB_REMOVE_ENDPOINT = { toplay: 'to-play', playing: 'playing-now' };
 
+// La ruleta vale para las dos listas que tienen sentido sortear: elegir el
+// siguiente juego, o elegir a cuál de los que ya llevas en marcha le toca
+// hoy. Fuera de esas dos pestañas no se muestra.
+const ROULETTE_MODES = {
+  toplay: { title: '¿A qué juego jugamos?', filter: (g) => g.inToPlay, resultPrefix: 'Te toca jugar a' },
+  playing: { title: '¿Con cuál seguimos hoy?', filter: (g) => g.inPlayingNow, resultPrefix: 'Hoy le toca a' },
+};
+
 function applyView() {
   const term = document.getElementById('search-input').value.trim().toLowerCase();
   const platform = document.getElementById('platform-filter').value;
@@ -130,29 +138,33 @@ function renderGames(games, emptyMessage) {
     .join('');
 }
 
+function updateRouletteButton() {
+  const mode = ROULETTE_MODES[currentTab];
+  const roulette = document.getElementById('roulette-button');
+  roulette.hidden = !mode;
+  roulette.disabled = !mode || allGames.filter(mode.filter).length === 0;
+}
+
 async function refreshGames() {
   allGames = await fetchGames();
   refreshPlatformOptions();
 
-  const nextCount = allGames.filter((g) => g.inToPlay).length;
-  document.getElementById('toplay-count').textContent = nextCount;
+  document.getElementById('toplay-count').textContent = allGames.filter((g) => g.inToPlay).length;
   document.getElementById('playing-count').textContent = allGames.filter((g) => g.inPlayingNow).length;
-  const roulette = document.getElementById('roulette-button');
-  roulette.disabled = nextCount === 0;
-  roulette.hidden = currentTab !== 'toplay';
+  updateRouletteButton();
 
   applyView();
   renderTotalHoursFromGames(allGames);
 }
 
-// --- pestañas: "Mis juegos" / "Lista de siguientes" ---
+// --- pestañas: "Mis juegos" / "Lista de siguientes" / "Jugando ahora" ---
 document.querySelectorAll('.tab').forEach((tab) => {
   tab.addEventListener('click', () => {
     if (tab.classList.contains('is-active')) return;
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('is-active', t === tab));
     currentTab = tab.dataset.tab;
     document.body.classList.toggle('tab-toplay', currentTab === 'toplay');
-    document.getElementById('roulette-button').hidden = currentTab !== 'toplay';
+    updateRouletteButton();
     applyView();
   });
 });
@@ -399,6 +411,7 @@ const wheelGo = document.getElementById('wheel-go');
 let wheelGames = [];
 let wheelRotation = 0;
 let wheelSpinning = false;
+let activeRouletteMode = ROULETTE_MODES.toplay;
 
 function buildWheel(games) {
   const n = games.length;
@@ -444,9 +457,13 @@ function buildWheel(games) {
 }
 
 function openRoulette() {
-  wheelGames = allGames.filter((g) => g.inToPlay);
+  const mode = ROULETTE_MODES[currentTab];
+  if (!mode) return;
+  activeRouletteMode = mode;
+  wheelGames = allGames.filter(mode.filter);
   if (wheelGames.length === 0) return;
   buildWheel(wheelGames);
+  document.getElementById('roulette-title').textContent = mode.title;
   wheelResult.textContent = 'Gira la ruleta…';
   wheelGo.hidden = true;
   wheelSpin.disabled = false;
@@ -491,7 +508,7 @@ function spinWheel() {
     clearWheelTickTimers();
     playResultChime();
     const g = wheelGames[pick];
-    wheelResult.innerHTML = `Te toca jugar a <strong>${escapeHtml(g.title)}</strong>`;
+    wheelResult.innerHTML = `${escapeHtml(activeRouletteMode.resultPrefix)} <strong>${escapeHtml(g.title)}</strong>`;
     wheelGo.href = `/game.html?id=${g.id}`;
     wheelGo.hidden = false;
     wheelSpin.disabled = false;

@@ -72,12 +72,22 @@ function getGameByExternalId(db, source, externalId) {
 // aparece en la biblioteca, o actualiza título/icono si ya existía (las
 // tiendas los cambian de vez en cuando). No toca missing_since: la
 // detección de ausencias vive en cada flujo de sync.
+//
+// icon_url = COALESCE(?, icon_url): si ESTA sync no trae icono (Eden nunca
+// trae uno, y no es el único caso), se conserva el que hubiera —el de la
+// propia plataforma, o el que rellenó IGDB como último recurso (ver
+// setIgdbTimes)— en vez de borrarlo. Sincronizar no debe hacer desaparecer
+// una carátula que ya se había resuelto.
 function upsertExternalGame(db, { source, externalId, title, iconUrl = null, platform }) {
   const now = new Date().toISOString();
   const existingId = findGameIdByExternalId(db, source, externalId);
 
   if (existingId) {
-    db.prepare('UPDATE games SET title = ?, icon_url = ? WHERE id = ?').run(title, iconUrl, existingId);
+    db.prepare('UPDATE games SET title = ?, icon_url = COALESCE(?, icon_url) WHERE id = ?').run(
+      title,
+      iconUrl,
+      existingId
+    );
     return getGameById(db, existingId);
   }
 
