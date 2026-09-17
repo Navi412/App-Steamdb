@@ -68,17 +68,26 @@ function secondsToMinutes(seconds) {
   return minutes <= MAX_PLAUSIBLE_MINUTES ? minutes : null;
 }
 
+// IGDB devuelve la portada a tamaño "thumb" (90x90, recortada a cuadrado
+// y sin protocolo en la URL); se pide "cover_big" (264x374, sin recortar)
+// y se fuerza https, que es lo que espera un <img src>.
+function buildCoverUrl(rawUrl) {
+  if (!rawUrl) return null;
+  const withProtocol = rawUrl.startsWith('//') ? `https:${rawUrl}` : rawUrl;
+  return withProtocol.replace('/t_thumb/', '/t_cover_big/');
+}
+
 async function searchGame(title, { clientId, clientSecret, fetchImpl = fetch } = {}) {
   if (!title || !title.trim()) throw new Error('title es obligatorio');
 
   const escaped = title.trim().replace(/"/g, '\\"');
   const games = await igdbRequest(
     GAMES_URL,
-    `search "${escaped}"; fields id,name; limit 20;`,
+    `search "${escaped}"; fields id,name,cover.url; limit 20;`,
     { clientId, clientSecret, fetchImpl }
   );
 
-  return games.map((g) => ({ igdbId: g.id, title: g.name }));
+  return games.map((g) => ({ igdbId: g.id, title: g.name, coverUrl: buildCoverUrl(g.cover?.url) }));
 }
 
 // hastily/completely son los nombres de campo de IGDB: "hastily" es el

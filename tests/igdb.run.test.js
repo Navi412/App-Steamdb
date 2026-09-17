@@ -140,3 +140,42 @@ test('un fallo HTTP con un juego se cuenta como failed y no aborta el resto', as
   assert.equal(stats.updated, 1);
   assert.equal(gamesDb.getGameById(db, ok.id).igdbId, 1);
 });
+
+test('un juego sin carátula propia (Eden/Switch) recibe la de IGDB', async () => {
+  const db = tempDb();
+  const g = gamesDb.insertManualGame(db, { title: 'Celeste', platform: 'Switch' });
+
+  const fetchImpl = fakeIgdb({
+    searchResults: {
+      Celeste: [{ id: 1, name: 'Celeste', cover: { url: '//images.igdb.com/igdb/image/upload/t_thumb/abc.jpg' } }],
+    },
+    timesByIgdbId: { 1: { hastily: 480 * 60, completely: 2400 * 60 } },
+  });
+
+  await enrichGamesWithIgdb({ db, ...cred, fetchImpl });
+  assert.equal(
+    gamesDb.getGameById(db, g.id).iconUrl,
+    'https://images.igdb.com/igdb/image/upload/t_cover_big/abc.jpg'
+  );
+});
+
+test('un juego que ya tiene icon_url propio (Xbox, GOG...) no lo pierde por IGDB', async () => {
+  const db = tempDb();
+  const g = gamesDb.upsertExternalGame(db, {
+    source: 'xbox',
+    externalId: 'x1',
+    title: 'Celeste',
+    iconUrl: 'https://store.microsoft.com/celeste.jpg',
+    platform: 'Xbox',
+  });
+
+  const fetchImpl = fakeIgdb({
+    searchResults: {
+      Celeste: [{ id: 1, name: 'Celeste', cover: { url: '//images.igdb.com/igdb/image/upload/t_thumb/abc.jpg' } }],
+    },
+    timesByIgdbId: { 1: { hastily: 480 * 60, completely: 2400 * 60 } },
+  });
+
+  await enrichGamesWithIgdb({ db, ...cred, fetchImpl });
+  assert.equal(gamesDb.getGameById(db, g.id).iconUrl, 'https://store.microsoft.com/celeste.jpg');
+});

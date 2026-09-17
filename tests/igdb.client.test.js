@@ -71,14 +71,29 @@ test('searchGame pide un token y busca en /games por título', async () => {
 
   const results = await searchGame('Hollow Knight', { clientId: 'C', clientSecret: 'S', fetchImpl });
   assert.deepEqual(results, [
-    { igdbId: 1, title: 'Hollow Knight' },
-    { igdbId: 2, title: 'Hollow Knight: Silksong' },
+    { igdbId: 1, title: 'Hollow Knight', coverUrl: null },
+    { igdbId: 2, title: 'Hollow Knight: Silksong', coverUrl: null },
   ]);
 
   const gamesCall = fetchImpl.calls.find((c) => c.url.includes('v4/games'));
   assert.equal(gamesCall.options.headers['Client-ID'], 'C');
   assert.equal(gamesCall.options.headers.Authorization, 'Bearer tok');
   assert.match(gamesCall.options.body, /search "Hollow Knight"/);
+  assert.match(gamesCall.options.body, /cover\.url/);
+});
+
+test('searchGame traduce cover.url a https y a tamaño cover_big', async () => {
+  const { searchGame } = freshClient();
+  const fetchImpl = fakeFetch([
+    { urlIncludes: 'oauth2/token', body: { access_token: 'tok', expires_in: 3600 } },
+    {
+      urlIncludes: 'v4/games',
+      body: [{ id: 1, name: 'Celeste', cover: { url: '//images.igdb.com/igdb/image/upload/t_thumb/abc123.jpg' } }],
+    },
+  ]);
+
+  const [result] = await searchGame('Celeste', { clientId: 'C', clientSecret: 'S', fetchImpl });
+  assert.equal(result.coverUrl, 'https://images.igdb.com/igdb/image/upload/t_cover_big/abc123.jpg');
 });
 
 test('searchGame lanza si el título está vacío', async () => {

@@ -112,12 +112,16 @@ function updateGame(db, id, changes) {
 
 // Guarda el resultado de una búsqueda en IGDB (automática o corregida a
 // mano). igdbId se pasa siempre explícitamente, ya que una corrección
-// manual debe conservar el que ya había en vez de perderlo.
-function setIgdbTimes(db, id, { igdbId, mainMinutes, completionistMinutes }) {
+// manual debe conservar el que ya había en vez de perderlo. coverUrl solo
+// se usa como último recurso (COALESCE): si el juego ya tiene icon_url
+// propio (Xbox, GOG, Epic...) o carátula de Steam/manual, esas mandan y
+// esto no las pisa.
+function setIgdbTimes(db, id, { igdbId, mainMinutes, completionistMinutes, coverUrl }) {
   const now = new Date().toISOString();
   db.prepare(
-    `UPDATE games SET igdb_id = ?, igdb_main_minutes = ?, igdb_completionist_minutes = ?, igdb_updated_at = ? WHERE id = ?`
-  ).run(igdbId ?? null, mainMinutes ?? null, completionistMinutes ?? null, now, id);
+    `UPDATE games SET igdb_id = ?, igdb_main_minutes = ?, igdb_completionist_minutes = ?, igdb_updated_at = ?,
+       icon_url = COALESCE(icon_url, ?) WHERE id = ?`
+  ).run(igdbId ?? null, mainMinutes ?? null, completionistMinutes ?? null, now, coverUrl ?? null, id);
   return getGameById(db, id);
 }
 
