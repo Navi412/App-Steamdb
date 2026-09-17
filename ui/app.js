@@ -282,35 +282,41 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-// Clic corto (como el chasquido de una ruleta física al pasar un sector).
+// Clic suave (un "tock" apagado, no un chasquido) al pasar un sector: onda
+// seno en vez de cuadrada (sin armónicos ásperos) y un filtro paso-bajo
+// encima para limar cualquier resto de brillo.
 function playTick(gain = 1) {
   const ctx = getAudioCtx();
   const osc = ctx.createOscillator();
+  const filter = ctx.createBiquadFilter();
   const g = ctx.createGain();
-  osc.type = 'square';
-  osc.frequency.value = 820 + Math.random() * 70;
-  g.gain.setValueAtTime(0.15 * gain, ctx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.045);
-  osc.connect(g).connect(ctx.destination);
+  osc.type = 'sine';
+  osc.frequency.value = 580 + Math.random() * 40;
+  filter.type = 'lowpass';
+  filter.frequency.value = 1200;
+  g.gain.setValueAtTime(0.06 * gain, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.07);
+  osc.connect(filter).connect(g).connect(ctx.destination);
   osc.start();
-  osc.stop(ctx.currentTime + 0.05);
+  osc.stop(ctx.currentTime + 0.08);
 }
 
-// Acorde ascendente corto al parar, como un pequeño "¡tachán!" de resultado.
+// Acorde ascendente corto al parar, como un pequeño campanilleo de
+// resultado — igual de suave que los clics, no un "¡tachán!" brillante.
 function playResultChime() {
   const ctx = getAudioCtx();
   [523.25, 659.25, 783.99].forEach((freq, i) => {
     const osc = ctx.createOscillator();
     const g = ctx.createGain();
-    osc.type = 'triangle';
+    osc.type = 'sine';
     osc.frequency.value = freq;
-    const start = ctx.currentTime + i * 0.07;
+    const start = ctx.currentTime + i * 0.09;
     g.gain.setValueAtTime(0, start);
-    g.gain.linearRampToValueAtTime(0.18, start + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.5);
+    g.gain.linearRampToValueAtTime(0.1, start + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.6);
     osc.connect(g).connect(ctx.destination);
     osc.start(start);
-    osc.stop(start + 0.55);
+    osc.stop(start + 0.65);
   });
 }
 
