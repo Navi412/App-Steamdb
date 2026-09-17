@@ -11,6 +11,8 @@ const { getAccessToken } = require('../igdb/client');
 const epicRun = require('../epic/run');
 const epicAuthStore = require('../epic/file-auth-store');
 const epicClient = require('../epic/client');
+const { readGogLibrary } = require('../gog/client');
+const { readEdenLibrary } = require('../eden/client');
 
 const RESOLVE_VANITY_URL = 'https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/';
 const OPENXBL_ACCOUNT_URL = 'https://xbl.io/api/v2/account';
@@ -139,6 +141,29 @@ async function validateEpic({ authPath = epicAuthStore.DEFAULT_AUTH_PATH, fetchI
   }
 }
 
+// GOG y Eden no piden ninguna clave: leen datos que Galaxy/Eden ya dejaron
+// en el disco (ver gog/client.js y eden/client.js). "Validar" aquí es solo
+// confirmar que ese archivo/carpeta existe y se puede leer, con el mismo
+// shape { ok, detail } / { ok: false, error } que el resto de plataformas,
+// para que la UI (bienvenida y Ajustes) los trate todos por igual.
+function validateGog({ dbPath } = {}) {
+  try {
+    const { games } = readGogLibrary({ dbPath });
+    return { ok: true, detail: `${games.length} juegos en GOG Galaxy` };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+function validateEden({ dataDir } = {}) {
+  try {
+    const { games } = readEdenLibrary({ dataDir });
+    return { ok: true, detail: `${games.length} juegos detectados` };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 module.exports = {
   resolveSteamId,
   validateSteam,
@@ -147,6 +172,8 @@ module.exports = {
   extractEpicCode,
   activateEpic,
   validateEpic,
+  validateGog,
+  validateEden,
   RESOLVE_VANITY_URL,
   OPENXBL_ACCOUNT_URL,
 };

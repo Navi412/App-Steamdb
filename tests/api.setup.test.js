@@ -16,13 +16,28 @@ function tempEpicAuthPath() {
   return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'steamdb-setup-api-test-epic-')), 'epic_auth.json');
 }
 
-async function withServer(fn, { fetchImpl, envPath = tempEnvPath(), epicAuthPath = tempEpicAuthPath() } = {}) {
+// Rutas que a propósito no existen: sin esto, /api/setup/status leería la
+// instalación real de GOG Galaxy / Eden de la máquina que corre los tests.
+function tempMissingPath(name) {
+  return path.join(os.tmpdir(), `steamdb-setup-api-test-${name}-noexiste-${Date.now()}-${Math.random()}`);
+}
+
+async function withServer(
+  fn,
+  {
+    fetchImpl,
+    envPath = tempEnvPath(),
+    epicAuthPath = tempEpicAuthPath(),
+    gogDbPath = tempMissingPath('gog'),
+    edenDataDir = tempMissingPath('eden'),
+  } = {}
+) {
   process.env.DB_PATH = tempDbPath();
-  const server = createServer({ fetchImpl, envPath, epicAuthPath });
+  const server = createServer({ fetchImpl, envPath, epicAuthPath, gogDbPath, edenDataDir });
   await new Promise((resolve) => server.listen(0, resolve));
   const base = `http://localhost:${server.address().port}`;
   try {
-    await fn(base, { envPath, epicAuthPath });
+    await fn(base, { envPath, epicAuthPath, gogDbPath, edenDataDir });
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -73,6 +88,8 @@ test('GET /api/setup/status dice qué hay guardado, enmascarando lo secreto', as
       const before = await fetch(`${base}/api/setup/status`).then((r) => r.json());
       assert.equal(before.values.STEAM_API_KEY.filled, false);
       assert.equal(before.epic.ok, false);
+      assert.equal(before.gog.ok, false);
+      assert.equal(before.eden.ok, false);
 
       await fetch(`${base}/api/setup/save`, {
         method: 'POST',
@@ -86,6 +103,30 @@ test('GET /api/setup/status dice qué hay guardado, enmascarando lo secreto', as
       assert.equal(after.values.STEAM_ID.display, '76561198000000000'); // no es secreto: se ve entero
     });
   });
+});
+
+test('GET /api/setup/status detecta GOG y Eden cuando sus datos locales existen, sin pedir ninguna clave', async () => {
+  const { DatabaseSync } = require('node:sqlite');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'steamdb-setup-api-gog-'));
+  const gogDbPath = path.join(dir, 'galaxy-2.0.db');
+  const db = new DatabaseSync(gogDbPath);
+  db.exec('CREATE TABLE LibraryReleases (id INTEGER PRIMARY KEY, userId INTEGER, releaseKey TEXT);');
+  db.close();
+  const edenDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'steamdb-setup-api-eden-'));
+
+  await withServer(
+    async (base) => {
+      const status = await fetch(`${base}/api/setup/status`).then((r) => r.json());
+      assert.equal(status.gog.ok, true);
+      assert.match(status.gog.detail, /0 juegos/);
+      assert.equal(status.eden.ok, true);
+      assert.match(status.eden.detail, /0 juegos/);
+    },
+    { gogDbPath, edenDataDir }
+  );
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.rmSync(edenDataDir, { recursive: true, force: true });
 });
 
 test('POST /api/setup/save escribe en el .env indicado y lo dispone en process.env', async () => {

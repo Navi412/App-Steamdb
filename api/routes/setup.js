@@ -24,7 +24,7 @@ function maskValue(v) {
   return `${'*'.repeat(Math.min(8, v.length - 4))}${v.slice(-4)}`;
 }
 
-function registerSetupRoutes(router, { fetchImpl, epicAuthPath, envPath } = {}) {
+function registerSetupRoutes(router, { fetchImpl, epicAuthPath, gogDbPath, edenDataDir, envPath } = {}) {
   const validators = buildValidators(fetchImpl);
 
   // Metadatos de los pasos (títulos, campos, enlaces, guía en lenguaje
@@ -43,8 +43,19 @@ function registerSetupRoutes(router, { fetchImpl, epicAuthPath, envPath } = {}) 
       const raw = process.env[key] || stored[key] || '';
       values[key] = { filled: Boolean(raw), display: raw ? (SECRET_KEYS.has(key) ? maskValue(raw) : raw) : '' };
     }
-    const epic = await validate.validateEpic({ authPath: epicAuthPath, fetchImpl });
-    sendJson(res, 200, { values, epic: { ok: epic.ok, detail: epic.ok ? epic.detail : null } });
+    // GOG y Eden no tienen claves que enmascarar: solo se dice si se
+    // encontraron sus datos locales, igual que con la sesión de Epic.
+    const [epic, gog, eden] = await Promise.all([
+      validate.validateEpic({ authPath: epicAuthPath, fetchImpl }),
+      Promise.resolve(validate.validateGog({ dbPath: gogDbPath })),
+      Promise.resolve(validate.validateEden({ dataDir: edenDataDir })),
+    ]);
+    sendJson(res, 200, {
+      values,
+      epic: { ok: epic.ok, detail: epic.ok ? epic.detail : null },
+      gog: { ok: gog.ok, detail: gog.ok ? gog.detail : null, error: gog.ok ? null : gog.error },
+      eden: { ok: eden.ok, detail: eden.ok ? eden.detail : null, error: eden.ok ? null : eden.error },
+    });
   });
 
   // Comprueba un grupo contra la API real sin guardar nada todavía (igual

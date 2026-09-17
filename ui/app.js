@@ -508,6 +508,10 @@ const themeBgName = document.getElementById('theme-bg-name');
 // miniatura de qué está conectado, con el mismo componente de lista con
 // ticks que ya usa el paso final del asistente.
 const SETTINGS_PLATFORM_LABELS = { steam: 'Steam', igdb: 'IGDB', xbox: 'Xbox', epic: 'Epic' };
+// GOG y Eden no se "configuran" con ninguna clave: se detectan solos si
+// Galaxy/Eden están instalados y se han usado alguna vez (ver
+// setup/validate.js), así que no salen del wizard de campos como el resto.
+const SETTINGS_AUTO_PLATFORMS = { gog: 'GOG', eden: 'Eden (Switch)' };
 
 async function renderSettingsPlatforms() {
   settingsPlatformList.innerHTML = '<li><span class="ob-summary-detail">Comprobando…</span></li>';
@@ -516,14 +520,21 @@ async function renderSettingsPlatforms() {
       fetch('/api/setup/fields').then((r) => r.json()),
       fetch('/api/setup/status').then((r) => r.json()),
     ]);
-    const rows = fields.groups
+    const configuredRows = fields.groups
       .filter((g) => g.id in SETTINGS_PLATFORM_LABELS)
       .map((g) => {
         const done = g.id === 'epic' ? status.epic?.ok : (g.fields || []).every((f) => status.values[f.key]?.filled);
         return `<li class="${done ? 'done' : 'skipped'}"><span class="ob-summary-icon">${done ? '✓' : '–'}</span><span class="ob-summary-name">${escapeHtml(SETTINGS_PLATFORM_LABELS[g.id])}</span><span class="ob-summary-detail">${done ? 'conectado' : 'sin configurar'}</span></li>`;
       })
       .join('');
-    settingsPlatformList.innerHTML = rows;
+    const autoRows = Object.entries(SETTINGS_AUTO_PLATFORMS)
+      .map(([id, label]) => {
+        const st = status[id] || {};
+        const title = !st.ok && st.error ? ` title="${escapeHtml(st.error)}"` : '';
+        return `<li class="${st.ok ? 'done' : 'skipped'}"${title}><span class="ob-summary-icon">${st.ok ? '✓' : '–'}</span><span class="ob-summary-name">${escapeHtml(label)}</span><span class="ob-summary-detail">${st.ok ? 'detectado' : 'no detectado'}</span></li>`;
+      })
+      .join('');
+    settingsPlatformList.innerHTML = configuredRows + autoRows;
   } catch {
     settingsPlatformList.innerHTML = '<li><span class="ob-summary-detail">No se pudo comprobar el estado.</span></li>';
   }

@@ -327,6 +327,18 @@ async function runDoctor() {
     }
   }
 
+  // GOG y Eden no piden ninguna clave: se detectan solos si Galaxy/Eden
+  // están instalados (ver setup/validate.js), así que se comprueban siempre,
+  // igual que Epic — que no esté instalado no es un fallo de configuración.
+  for (const [title, detector] of [
+    ['GOG', () => validate.validateGog({})],
+    ['Eden (Switch)', () => validate.validateEden({})],
+  ]) {
+    const r = await detector();
+    if (r.ok) console.log(label(title) + `${OK} ${dim(r.detail)}`);
+    else console.log(label(title) + dim('— no detectado') + dim(` (${r.error})`));
+  }
+
   const port = val('PORT') || '3000';
   console.log(label('Servidor local') + dim(`puerto ${port}`));
 

@@ -62,7 +62,7 @@ function createServer({ fetchImpl, epicAuthPath, gogDbPath, edenDataDir, envPath
   const router = createRouter();
   registerGameRoutes(router, db, { fetchImpl });
   registerSyncRoutes(router, db, { fetchImpl, epicAuthPath, gogDbPath, edenDataDir });
-  registerSetupRoutes(router, { fetchImpl, epicAuthPath, envPath });
+  registerSetupRoutes(router, { fetchImpl, epicAuthPath, gogDbPath, edenDataDir, envPath });
 
   // Nombre para personalizar el título ("Biblioteca de <nombre>"). Sale de
   // USER_NAME en el .env; si no está, la UI usa un título genérico.

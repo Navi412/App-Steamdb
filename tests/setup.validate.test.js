@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
 
 // validate.js y el cliente de IGDB cachean cosas en memoria de módulo; se
 // recargan por test para que no hereden estado entre casos.
@@ -213,4 +214,49 @@ test('activateEpic canjea el código y guarda la sesión', async () => {
   assert.equal(JSON.parse(fs.readFileSync(authPath, 'utf8')).refreshToken, 'rt');
 
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+// ── validateGog / validateEden ────────────────────────────────────────
+// Ninguna de las dos pide credenciales: solo confirman que Galaxy/Eden
+// dejaron sus datos en el disco (ver setup/validate.js).
+test('validateGog ok cuenta los juegos si la base de Galaxy existe', async () => {
+  const { validateGog } = freshValidate();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'steamdb-gog-validate-'));
+  const dbPath = path.join(dir, 'galaxy-2.0.db');
+  const db = new DatabaseSync(dbPath);
+  db.exec('CREATE TABLE LibraryReleases (id INTEGER PRIMARY KEY, userId INTEGER, releaseKey TEXT);');
+  db.close();
+
+  const r = validateGog({ dbPath });
+  assert.equal(r.ok, true);
+  assert.match(r.detail, /0 juegos/);
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('validateGog falla limpio (con el mismo error que el sync) si no hay Galaxy instalado', async () => {
+  const { validateGog } = freshValidate();
+  const dbPath = path.join(os.tmpdir(), `steamdb-gog-noexiste-${Date.now()}.db`);
+  const r = validateGog({ dbPath });
+  assert.equal(r.ok, false);
+  assert.match(r.error, /no se encontr[óo] la base de GOG Galaxy/);
+});
+
+test('validateEden ok cuenta los juegos si la carpeta de datos de Eden existe', async () => {
+  const { validateEden } = freshValidate();
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'steamdb-eden-validate-'));
+
+  const r = validateEden({ dataDir });
+  assert.equal(r.ok, true);
+  assert.match(r.detail, /0 juegos/);
+
+  fs.rmSync(dataDir, { recursive: true, force: true });
+});
+
+test('validateEden falla limpio si no hay carpeta de datos de Eden', async () => {
+  const { validateEden } = freshValidate();
+  const dataDir = path.join(os.tmpdir(), `steamdb-eden-noexiste-${Date.now()}`);
+  const r = validateEden({ dataDir });
+  assert.equal(r.ok, false);
+  assert.match(r.error, /no se encontr[óo] la carpeta de datos de Eden/);
 });

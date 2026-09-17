@@ -4,6 +4,10 @@
 // contra la API real) pero como una página normal en vez de una consola.
 
 const SHORT_LABEL = { steam: 'Steam', igdb: 'IGDB', xbox: 'Xbox', epic: 'Epic' };
+// GOG y Eden no tienen paso propio en el asistente (no piden ninguna clave:
+// se detectan solos si Galaxy/Eden están instalados, ver setup/validate.js),
+// así que solo aparecen en el resumen final con lo que diga /api/setup/status.
+const AUTO_PLATFORM_LABEL = { gog: 'GOG', eden: 'Eden (Switch)' };
 
 let groups = [];
 let status = null;
@@ -89,6 +93,9 @@ function renderWelcome() {
     contador y calcula sola cuánto jugaste en cada rato. Por eso hace falta conectar
     al menos tu cuenta de Steam — el resto de plataformas son opcionales y se pueden
     añadir luego desde el menú «Backlog → Configuración».</p>
+    <p>GOG y Eden no te van a pedir ninguna clave en los siguientes pasos: si los
+    tienes instalados y los has usado alguna vez, se detectan solos (lo verás
+    confirmado al final).</p>
     <div class="ob-feature-row">
       <span class="ob-feature-pill" style="animation-delay:.05s">🕹️ Steam</span>
       <span class="ob-feature-pill" style="animation-delay:.12s">🎮 Xbox</span>
@@ -283,7 +290,7 @@ function renderEpic(group) {
 }
 
 function renderFinish() {
-  const rows = groups
+  const configuredRows = groups
     .map((g) => {
       const r = results[g.id] || { state: 'skipped' };
       const cls = r.state === 'done' ? 'done' : 'skipped';
@@ -292,6 +299,17 @@ function renderFinish() {
       return `<li class="${cls}"><span class="ob-summary-icon">${icon}</span><span class="ob-summary-name">${escapeHtml(shortLabel(g))}</span><span class="ob-summary-detail">${escapeHtml(detail)}</span></li>`;
     })
     .join('');
+  const autoRows = Object.entries(AUTO_PLATFORM_LABEL)
+    .map(([id, label]) => {
+      const st = status[id] || {};
+      const cls = st.ok ? 'done' : 'skipped';
+      const icon = st.ok ? '✓' : '–';
+      const detail = st.ok ? st.detail : 'no detectado (opcional)';
+      const title = !st.ok && st.error ? ` title="${escapeHtml(st.error)}"` : '';
+      return `<li class="${cls}"${title}><span class="ob-summary-icon">${icon}</span><span class="ob-summary-name">${escapeHtml(label)}</span><span class="ob-summary-detail">${escapeHtml(detail)}</span></li>`;
+    })
+    .join('');
+  const rows = configuredRows + autoRows;
 
   setStepHTML(`
     <p class="ob-eyebrow">Último paso</p>
