@@ -15,7 +15,30 @@ const LIBRARY_HOST = 'https://library-service.live.use1a.on.epicgames.com';
 // Credenciales públicas del "Epic Games Launcher".
 const CLIENT_ID = '34a02cf8f4414e29b15921876da36f9a';
 const CLIENT_SECRET = 'daafbccc737745039dffe53d94fc76cf';
-const BASIC_AUTH = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
+
+// Sin Buffer.from(...).toString('base64'): este módulo lo importa tal cual
+// /mobile (ver mobile/App.js), y Hermes/React Native no trae el global
+// Buffer de Node — reventaba la app entera al arrancar (ReferenceError:
+// Property 'Buffer' doesn't exist), porque este cálculo corre en cuanto se
+// importa el módulo, no solo al hacer login. Las credenciales son ASCII
+// puro, así que codificar byte a byte a mano es válido (y da bit a bit lo
+// mismo que Buffer para ASCII).
+function toBase64(str) {
+  const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let out = '';
+  for (let i = 0; i < str.length; i += 3) {
+    const b0 = str.charCodeAt(i);
+    const b1 = i + 1 < str.length ? str.charCodeAt(i + 1) : null;
+    const b2 = i + 2 < str.length ? str.charCodeAt(i + 2) : null;
+    out += CHARS[b0 >> 2];
+    out += CHARS[((b0 & 3) << 4) | (b1 === null ? 0 : b1 >> 4)];
+    out += b1 === null ? '=' : CHARS[((b1 & 15) << 2) | (b2 === null ? 0 : b2 >> 6)];
+    out += b2 === null ? '=' : CHARS[b2 & 63];
+  }
+  return out;
+}
+
+const BASIC_AUTH = toBase64(`${CLIENT_ID}:${CLIENT_SECRET}`);
 
 async function oauthToken(params, { fetchImpl = fetch } = {}) {
   const res = await fetchImpl(`${ACCOUNT_HOST}/account/api/oauth/token`, {
