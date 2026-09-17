@@ -75,8 +75,16 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Preparar Android SDK
-        uses: android-actions/setup-android@v3
+      # Sin paso de "preparar Android SDK": los runners ubuntu-latest de
+      # GitHub ya traen uno instalado y con las licencias aceptadas (vía
+      # ANDROID_HOME/ANDROID_SDK_ROOT). Hasta aquí se usaba
+      # android-actions/setup-android@v3 para completarlo, pero una
+      # actualización de la imagen del runner le rompió la detección de
+      # versión ("Wrong version in preinstalled sdkmanager") y a partir de
+      # ahí intenta instalar el paquete "tools", que Google retiró del
+      # repositorio — falla siempre, no es cosa nuestra (ver
+      # https://github.com/orgs/community/discussions/175460). El SDK
+      # preinstalado ya trae de sobra lo que piden expo prebuild y Gradle.
 
       - name: Instalar dependencias del móvil
         working-directory: mobile
