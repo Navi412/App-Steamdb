@@ -381,13 +381,15 @@ export default function App() {
           <GetItButton label="Conseguir clave" url={HELP_URLS.steamApiKey} />
         </View>
         <TextInput
-          style={styles.input}
+          style={styles.inputMultiline}
           placeholder="Pega aquí la clave"
           placeholderTextColor={COLORS.textMuted}
           value={apiKey}
           onChangeText={setApiKey}
           autoCapitalize="none"
           autoCorrect={false}
+          multiline
+          textAlignVertical="top"
         />
 
         <View style={styles.labelRow}>
@@ -401,13 +403,15 @@ export default function App() {
           También vale pegar directamente el número de 17 dígitos si ya lo tienes.
         </Text>
         <TextInput
-          style={styles.input}
+          style={styles.inputMultiline}
           placeholder="Enlace de tu perfil o tu SteamID64"
           placeholderTextColor={COLORS.textMuted}
           value={steamId}
           onChangeText={setSteamId}
           autoCapitalize="none"
           autoCorrect={false}
+          multiline
+          textAlignVertical="top"
         />
 
         <Text style={styles.sectionLabel}>Xbox (opcional)</Text>
@@ -416,13 +420,15 @@ export default function App() {
           <GetItButton label="Conseguir clave" url={HELP_URLS.openxbl} />
         </View>
         <TextInput
-          style={styles.input}
+          style={styles.inputMultiline}
           placeholder="Pega aquí la clave"
           placeholderTextColor={COLORS.textMuted}
           value={xboxApiKey}
           onChangeText={setXboxApiKey}
           autoCapitalize="none"
           autoCorrect={false}
+          multiline
+          textAlignVertical="top"
         />
 
         <Text style={styles.sectionLabel}>Epic Games (opcional)</Text>
@@ -438,17 +444,23 @@ export default function App() {
             aparece entre comillas después de authorizationCode (o pega el texto entero).
           </Text>
         )}
-        <View style={styles.addRow}>
+        <View style={styles.addRowMultiline}>
           <TextInput
-            style={styles.input}
+            style={styles.inputMultiline}
             placeholder="authorizationCode, o el texto entero"
             placeholderTextColor={COLORS.textMuted}
             value={epicCode}
             onChangeText={setEpicCode}
             autoCapitalize="none"
             autoCorrect={false}
+            multiline
+            textAlignVertical="top"
           />
-          <Pressable style={styles.addButton} onPress={onConnectEpic} disabled={connectingEpic}>
+          <Pressable
+            style={[styles.addButton, styles.addButtonEnd]}
+            onPress={onConnectEpic}
+            disabled={connectingEpic}
+          >
             {connectingEpic ? (
               <ActivityIndicator color={COLORS.bg} />
             ) : (
@@ -675,6 +687,10 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 18,
   },
+  addRowMultiline: {
+    gap: 10,
+    marginBottom: 18,
+  },
   input: {
     flex: 1,
     color: COLORS.text,
@@ -685,11 +701,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
+  // A diferencia de `input` (una línea, pensado para campos cortos), estos
+  // reciben valores largos que se pegan de golpe (API keys, el enlace del
+  // perfil de Steam, el bloque de texto de Epic): en una sola línea Android
+  // los deja con scroll horizontal dentro de la caja y solo se ve un trozo,
+  // así que crecen verticalmente para mostrar el texto pegado entero.
+  inputMultiline: {
+    color: COLORS.text,
+    backgroundColor: COLORS.glass,
+    borderWidth: 1,
+    borderColor: COLORS.stroke,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minHeight: 44,
+    maxHeight: 140,
+  },
   addButton: {
     backgroundColor: COLORS.accent,
     borderRadius: 10,
     paddingHorizontal: 18,
     justifyContent: 'center',
+  },
+  addButtonEnd: {
+    alignSelf: 'flex-end',
+    paddingVertical: 10,
   },
   addButtonText: { color: COLORS.bg, fontWeight: '700' },
   secondaryButton: {
