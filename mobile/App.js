@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  BackHandler,
   FlatList,
   Image,
   Keyboard,
@@ -49,6 +50,23 @@ import {
 // reutilizados tal cual porque solo hablan con `db` y no con node:fs. La
 // ruleta no reutiliza nada del escritorio (esa sí que es DOM/CSS puro) pero
 // sigue las mismas dos listas como fuente de datos.
+//
+// Fase 7: Ajustes se parte en dos pestañas ("Cuentas" / "Apariencia") igual
+// que el escritorio separa credenciales y tema en su modal de Ajustes. La
+// paleta reutiliza los mismos 7 temas y colores exactos de ui/common.js +
+// ui/styles.css, pero aquí no hay custom properties de CSS que redefinir:
+// los colores viven en `THEMES` y el StyleSheet se reconstruye con
+// `createStyles(colors)` cada vez que cambia el tema (ver `colors`/`styles`
+// dentro de App). El fondo personalizado del escritorio (subir una imagen)
+// se queda fuera: exigiría una librería de selección de imágenes nueva
+// (expo-image-picker) solo para esto.
+//
+// También: el botón atrás físico/gesto de Android salía de la app entera
+// en vez de volver a la pantalla anterior (comportamiento por defecto de
+// React Native, que no sabe nada de nuestra navegación manual por
+// `view`). Se intercepta con BackHandler para que desde la ficha de un
+// juego o desde Ajustes vuelva a la biblioteca en la pestaña en la que
+// estabas, igual que el botón "← Volver".
 // Envuelto en try/catch porque un fallo aquí (p.ej. un require que Metro
 // empaquetó pero que revienta al ejecutarse en el dispositivo) pasaba antes
 // desapercibido: ocurre al evaluar el módulo, antes de que exista ningún
@@ -156,16 +174,116 @@ function epicAuthStore(db) {
   };
 }
 
-const COLORS = {
-  bg: '#0a0e1a',
-  glass: 'rgba(255,255,255,0.06)',
-  stroke: 'rgba(255,255,255,0.12)',
-  text: '#e9edf8',
-  textMuted: '#97a1bb',
-  accent: '#7cc4ff',
-  accent2: '#a996ff',
-  danger: '#ff8ba0',
-};
+// Los mismos 7 temas y los mismos colores exactos que ui/common.js
+// (THEMES) + ui/styles.css, para que la paleta se sienta igual que en
+// escritorio. RN no tiene custom properties de CSS que redefinir por tema,
+// así que cada uno es un objeto plano y el StyleSheet se reconstruye con
+// createStyles(colors) cuando cambia (ver `colors`/`styles` en App).
+const THEMES = [
+  {
+    id: 'dark',
+    name: 'Glass oscuro',
+    colors: {
+      bg: '#0a0e1a',
+      glass: 'rgba(255,255,255,0.06)',
+      stroke: 'rgba(255,255,255,0.12)',
+      text: '#e9edf8',
+      textMuted: '#97a1bb',
+      accent: '#7cc4ff',
+      accent2: '#a996ff',
+      danger: '#ff8ba0',
+    },
+  },
+  {
+    id: 'midnight',
+    name: 'Medianoche',
+    colors: {
+      bg: '#05070d',
+      glass: 'rgba(180,210,255,0.06)',
+      stroke: 'rgba(180,210,255,0.12)',
+      text: '#dbe6f5',
+      textMuted: '#7c8aa3',
+      accent: '#5ad1ff',
+      accent2: '#4f8dff',
+      danger: '#ff7d95',
+    },
+  },
+  {
+    id: 'aurora',
+    name: 'Aurora',
+    colors: {
+      bg: '#06120f',
+      glass: 'rgba(190,255,230,0.06)',
+      stroke: 'rgba(190,255,230,0.12)',
+      text: '#e6f5ef',
+      textMuted: '#86ab9e',
+      accent: '#4be3b0',
+      accent2: '#38bdf8',
+      danger: '#ff8ba0',
+    },
+  },
+  {
+    id: 'amber',
+    name: 'Ámbar',
+    colors: {
+      bg: '#170d08',
+      glass: 'rgba(255,220,190,0.06)',
+      stroke: 'rgba(255,220,190,0.13)',
+      text: '#fbe9dc',
+      textMuted: '#c39a7d',
+      accent: '#ffb454',
+      accent2: '#ff7a59',
+      danger: '#ff5c6c',
+    },
+  },
+  {
+    id: 'light',
+    name: 'Claro',
+    colors: {
+      bg: '#f3f5fb',
+      glass: 'rgba(255,255,255,0.55)',
+      stroke: 'rgba(28,35,60,0.1)',
+      text: '#1c2333',
+      textMuted: '#5b6478',
+      accent: '#2f7dd1',
+      accent2: '#7c5cff',
+      danger: '#d43f5a',
+    },
+  },
+  {
+    id: 'tavern',
+    name: 'Taberna',
+    colors: {
+      bg: '#1b1108',
+      glass: 'rgba(255,205,140,0.06)',
+      stroke: 'rgba(255,205,140,0.15)',
+      text: '#f2ddbb',
+      textMuted: '#ad8862',
+      accent: '#e0a458',
+      accent2: '#c1440e',
+      danger: '#ff6b52',
+    },
+  },
+  {
+    id: 'space',
+    name: 'Espacio',
+    colors: {
+      bg: '#050611',
+      glass: 'rgba(140,170,255,0.06)',
+      stroke: 'rgba(140,170,255,0.14)',
+      text: '#e6ecff',
+      textMuted: '#7c86b8',
+      accent: '#7cf9ff',
+      accent2: '#b06bff',
+      danger: '#ff5c8a',
+    },
+  },
+];
+const DEFAULT_THEME_ID = 'dark';
+
+function paletteFor(themeId) {
+  return (THEMES.find((t) => t.id === themeId) || THEMES[0]).colors;
+}
 
 function formatHours(minutes) {
   return `${(minutes / 60).toFixed(1)} h`;
@@ -212,11 +330,18 @@ const ROULETTE_MODES = {
   playing: { title: '¿Con cuál seguimos hoy?', filter: (g) => g.inPlayingNow, resultPrefix: 'Hoy le toca a' },
 };
 
+const SETTINGS_TABS = [
+  { id: 'accounts', label: 'Cuentas' },
+  { id: 'appearance', label: 'Apariencia' },
+];
+
 // Botón junto a cada campo de credencial: abre en el navegador la página
 // exacta de donde se saca ese valor, para que rellenar Ajustes no dependa
 // de saber ya dónde buscar (mismo espíritu que `setup/open-url.js` en
 // escritorio, pero como botón en vez de paso automático de un wizard).
-function GetItButton({ label, url }) {
+// `styles` llega por prop porque ya no es un StyleSheet fijo a nivel de
+// módulo: depende del tema activo (ver createStyles en App).
+function GetItButton({ label, url, styles }) {
   return (
     <Pressable style={styles.getItButton} onPress={() => openHelpUrl(url)}>
       <Text style={styles.getItButtonText}>{label} ↗</Text>
@@ -231,7 +356,7 @@ function GetItButton({ label, url }) {
 // sin dependencias nuevas. El pulso de escala en cada nombre sustituye al
 // "tock" de audio del escritorio (Web Audio tampoco existe en RN sin sumar
 // expo-av).
-function RouletteModal({ visible, mode, games, onClose, onOpenGame }) {
+function RouletteModal({ visible, mode, games, onClose, onOpenGame, colors, styles }) {
   const [spinning, setSpinning] = useState(false);
   const [displayTitle, setDisplayTitle] = useState('');
   const [result, setResult] = useState(null);
@@ -313,7 +438,7 @@ function RouletteModal({ visible, mode, games, onClose, onOpenGame }) {
               disabled={spinning || games.length === 0}
             >
               {spinning ? (
-                <ActivityIndicator color={COLORS.bg} />
+                <ActivityIndicator color={colors.bg} />
               ) : (
                 <Text style={styles.addButtonText}>{result ? 'Girar otra vez' : 'Girar'}</Text>
               )}
@@ -370,6 +495,15 @@ export default function App() {
   const [savingSession, setSavingSession] = useState(false);
   const [rouletteOpen, setRouletteOpen] = useState(false);
 
+  // Fase 7: pestañas de Ajustes ("Cuentas" / "Apariencia") y tema elegido,
+  // guardado igual que el resto de settings (tabla settings, clave 'theme').
+  const [settingsTab, setSettingsTab] = useState('accounts');
+  const [themeId, setThemeId] = useState(DEFAULT_THEME_ID);
+
+  const colors = useMemo(() => paletteFor(themeId), [themeId]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const statusBarStyle = themeId === 'light' ? 'dark-content' : 'light-content';
+
   // Android hace hueco para el teclado (windowSoftInputMode="resize", el
   // valor por defecto de Expo) pero no desplaza el contenido hasta el campo
   // que estás rellenando, así que si está más abajo del hueco visible el
@@ -414,6 +548,30 @@ export default function App() {
     return () => sub.remove();
   }, []);
 
+  // El botón/gesto atrás de Android por defecto cierra la app entera (React
+  // Native no sabe nada de nuestra navegación manual por `view`). Desde la
+  // ficha de un juego o desde Ajustes, en vez de eso vuelve a la biblioteca
+  // (en la pestaña en la que estabas, porque `currentTab` no se toca) —
+  // igual que el botón "← Volver". En la propia biblioteca se deja el
+  // comportamiento por defecto (salir).
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (view === 'game') {
+        setView('library');
+        setSelectedGameId(null);
+        setGameSessions([]);
+        setGameAchievements([]);
+        return true;
+      }
+      if (view === 'settings') {
+        setView('library');
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [view]);
+
   useEffect(() => {
     try {
       const database = openDatabase();
@@ -424,6 +582,8 @@ export default function App() {
       setSteamId(savedSteamId);
       setXboxApiKey(settingsDb.getSetting(database, 'openxblApiKey') || '');
       setEpicAccountId(epicAuthStore(database).load()?.accountId || null);
+      const savedTheme = settingsDb.getSetting(database, 'theme');
+      if (savedTheme) setThemeId(savedTheme);
       setDb(database);
       // Primer arranque (todavía sin Steam configurado): ir directo a
       // Ajustes en vez de a una biblioteca vacía, para que lo primero que
@@ -454,11 +614,16 @@ export default function App() {
   if (bootError) {
     return (
       <View style={[styles.container, { paddingTop: 80 }]}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={colors.bg} />
         <Text style={styles.title}>Error al iniciar la app</Text>
         <Text style={styles.error}>{String(bootError.stack || bootError.message || bootError)}</Text>
       </View>
     );
+  }
+
+  function selectTheme(id) {
+    setThemeId(id);
+    if (db) settingsDb.setSetting(db, 'theme', id);
   }
 
   async function onAdd() {
@@ -673,7 +838,7 @@ export default function App() {
     if (!selectedGame) {
       return (
         <View style={[styles.container, { paddingTop: 56 }]}>
-          <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+          <StatusBar barStyle={statusBarStyle} backgroundColor={colors.bg} />
           <Pressable onPress={closeGame}>
             <Text style={styles.backLink}>← Volver</Text>
           </Pressable>
@@ -688,7 +853,7 @@ export default function App() {
 
     return (
       <KeyboardAvoidingView style={styles.flexBg} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={colors.bg} />
         <ScrollView contentContainerStyle={styles.settingsContent} keyboardShouldPersistTaps="handled">
           <Pressable onPress={closeGame}>
             <Text style={styles.backLink}>← Volver a la biblioteca</Text>
@@ -724,7 +889,7 @@ export default function App() {
             <TextInput
               style={[styles.input, { flex: 0, width: 90 }]}
               placeholder="Horas"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={sessionHours}
               onChangeText={setSessionHours}
               keyboardType="decimal-pad"
@@ -732,13 +897,13 @@ export default function App() {
             <TextInput
               style={styles.input}
               placeholder="Nota (opcional)"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={sessionNote}
               onChangeText={setSessionNote}
             />
             <Pressable style={styles.addButton} onPress={onAddSession} disabled={savingSession}>
               {savingSession ? (
-                <ActivityIndicator color={COLORS.bg} />
+                <ActivityIndicator color={colors.bg} />
               ) : (
                 <Text style={styles.addButtonText}>Añadir</Text>
               )}
@@ -796,143 +961,190 @@ export default function App() {
         style={styles.flexBg}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={colors.bg} />
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={styles.settingsContent}
           keyboardShouldPersistTaps="handled"
         >
         <Text style={styles.kicker}>AJUSTES</Text>
-        <Text style={styles.title}>Cuentas</Text>
+        <Text style={styles.title}>{settingsTab === 'accounts' ? 'Cuentas' : 'Apariencia'}</Text>
 
-        {firstRun && (
-          <Text style={styles.intro}>
-            Para sincronizar hace falta al menos Steam. Pulsa el botón junto a cada campo:
-            te lleva a la página exacta donde se consigue, cópialo y pégalo aquí. Xbox y
-            Epic son opcionales — si no te interesan, déjalos en blanco y pulsa «Saltar
-            por ahora» o «Guardar» tal cual.
-          </Text>
-        )}
+        <View style={styles.tabsRow}>
+          {SETTINGS_TABS.map((tab) => (
+            <Pressable
+              key={tab.id}
+              style={[styles.tabButton, settingsTab === tab.id && styles.tabButtonActive]}
+              onPress={() => setSettingsTab(tab.id)}
+            >
+              <Text style={[styles.tabButtonText, settingsTab === tab.id && styles.tabButtonTextActive]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <Text style={styles.sectionLabel}>Steam</Text>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>Steam API Key</Text>
-          <GetItButton label="Conseguir clave" url={HELP_URLS.steamApiKey} />
-        </View>
-        <TextInput
-          style={styles.inputMultiline}
-          placeholder="Pega aquí la clave"
-          placeholderTextColor={COLORS.textMuted}
-          value={apiKey}
-          onChangeText={setApiKey}
-          autoCapitalize="none"
-          autoCorrect={false}
-          multiline
-          textAlignVertical="top"
-          onFocus={() => scrollToField('apiKey')}
-          onLayout={rememberFieldY('apiKey')}
-        />
+        {settingsTab === 'appearance' ? (
+          <>
+            <Text style={styles.sectionLabel}>Paleta</Text>
+            <View style={styles.themeGrid}>
+              {THEMES.map((t) => {
+                const active = t.id === themeId;
+                return (
+                  <Pressable
+                    key={t.id}
+                    style={[styles.themeCard, active && styles.themeCardActive]}
+                    onPress={() => selectTheme(t.id)}
+                  >
+                    <View style={[styles.themeSwatch, { backgroundColor: t.colors.bg, borderColor: t.colors.stroke }]}>
+                      <View style={[styles.themeSwatchDot, { backgroundColor: t.colors.accent }]} />
+                      <View style={[styles.themeSwatchDot, { backgroundColor: t.colors.accent2 }]} />
+                      {active && <Text style={[styles.themeCheck, { color: t.colors.accent }]}>✓</Text>}
+                    </View>
+                    <Text style={styles.themeName}>{t.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>SteamID64</Text>
-          <GetItButton label="Ver mi perfil" url={HELP_URLS.steamProfile} />
-        </View>
-        <Text style={styles.hint}>
-          El botón de arriba suele abrir la app de Steam en vez del navegador, y ahí no se
-          ve ningún número. En la app, pulsa el icono de compartir de tu perfil (⋯ → Compartir
-          perfil → Copiar enlace) y pega ese enlace aquí abajo — la app saca el SteamID64 sola.
-          También vale pegar directamente el número de 17 dígitos si ya lo tienes.
-        </Text>
-        <TextInput
-          style={styles.inputMultiline}
-          placeholder="Enlace de tu perfil o tu SteamID64"
-          placeholderTextColor={COLORS.textMuted}
-          value={steamId}
-          onChangeText={setSteamId}
-          autoCapitalize="none"
-          autoCorrect={false}
-          multiline
-          textAlignVertical="top"
-          onFocus={() => scrollToField('steamId')}
-          onLayout={rememberFieldY('steamId')}
-        />
+            <View style={styles.settingsButtons}>
+              <Pressable style={styles.secondaryButton} onPress={() => setView('library')}>
+                <Text style={styles.secondaryButtonText}>Volver</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <>
+            {firstRun && (
+              <Text style={styles.intro}>
+                Para sincronizar hace falta al menos Steam. Pulsa el botón junto a cada campo:
+                te lleva a la página exacta donde se consigue, cópialo y pégalo aquí. Xbox y
+                Epic son opcionales — si no te interesan, déjalos en blanco y pulsa «Saltar
+                por ahora» o «Guardar» tal cual.
+              </Text>
+            )}
 
-        <Text style={styles.sectionLabel}>Xbox (opcional)</Text>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>OpenXBL API Key</Text>
-          <GetItButton label="Conseguir clave" url={HELP_URLS.openxbl} />
-        </View>
-        <TextInput
-          style={styles.inputMultiline}
-          placeholder="Pega aquí la clave"
-          placeholderTextColor={COLORS.textMuted}
-          value={xboxApiKey}
-          onChangeText={setXboxApiKey}
-          autoCapitalize="none"
-          autoCorrect={false}
-          multiline
-          textAlignVertical="top"
-          onFocus={() => scrollToField('xboxApiKey')}
-          onLayout={rememberFieldY('xboxApiKey')}
-        />
+            <Text style={styles.sectionLabel}>Steam</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Steam API Key</Text>
+              <GetItButton styles={styles} label="Conseguir clave" url={HELP_URLS.steamApiKey} />
+            </View>
+            <TextInput
+              style={styles.inputMultiline}
+              placeholder="Pega aquí la clave"
+              placeholderTextColor={colors.textMuted}
+              value={apiKey}
+              onChangeText={setApiKey}
+              autoCapitalize="none"
+              autoCorrect={false}
+              multiline
+              textAlignVertical="top"
+              onFocus={() => scrollToField('apiKey')}
+              onLayout={rememberFieldY('apiKey')}
+            />
 
-        <Text style={styles.sectionLabel}>Epic Games (opcional)</Text>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>
-            {epicAccountId ? `Conectado (cuenta ${epicAccountId}).` : 'Código de un solo uso'}
-          </Text>
-          <GetItButton label="Abrir página de Epic" url={HELP_URLS.epic} />
-        </View>
-        {!epicAccountId && (
-          <Text style={styles.hint}>
-            Con sesión abierta en epicgames.com, pulsa el botón de arriba: te lleva a una
-            página en blanco con solo un bloque de texto — no hace falta que entiendas lo
-            que pone. Mantén el dedo pulsado sobre ese texto, elige «Seleccionar todo»,
-            cópialo entero (todo el bloque, no hace falta buscar nada dentro) y pégalo tal
-            cual en el campo de abajo: la app saca el código sola.
-          </Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>SteamID64</Text>
+              <GetItButton styles={styles} label="Ver mi perfil" url={HELP_URLS.steamProfile} />
+            </View>
+            <Text style={styles.hint}>
+              El botón de arriba suele abrir la app de Steam en vez del navegador, y ahí no se
+              ve ningún número. En la app, pulsa el icono de compartir de tu perfil (⋯ → Compartir
+              perfil → Copiar enlace) y pega ese enlace aquí abajo — la app saca el SteamID64 sola.
+              También vale pegar directamente el número de 17 dígitos si ya lo tienes.
+            </Text>
+            <TextInput
+              style={styles.inputMultiline}
+              placeholder="Enlace de tu perfil o tu SteamID64"
+              placeholderTextColor={colors.textMuted}
+              value={steamId}
+              onChangeText={setSteamId}
+              autoCapitalize="none"
+              autoCorrect={false}
+              multiline
+              textAlignVertical="top"
+              onFocus={() => scrollToField('steamId')}
+              onLayout={rememberFieldY('steamId')}
+            />
+
+            <Text style={styles.sectionLabel}>Xbox (opcional)</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>OpenXBL API Key</Text>
+              <GetItButton styles={styles} label="Conseguir clave" url={HELP_URLS.openxbl} />
+            </View>
+            <TextInput
+              style={styles.inputMultiline}
+              placeholder="Pega aquí la clave"
+              placeholderTextColor={colors.textMuted}
+              value={xboxApiKey}
+              onChangeText={setXboxApiKey}
+              autoCapitalize="none"
+              autoCorrect={false}
+              multiline
+              textAlignVertical="top"
+              onFocus={() => scrollToField('xboxApiKey')}
+              onLayout={rememberFieldY('xboxApiKey')}
+            />
+
+            <Text style={styles.sectionLabel}>Epic Games (opcional)</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>
+                {epicAccountId ? `Conectado (cuenta ${epicAccountId}).` : 'Código de un solo uso'}
+              </Text>
+              <GetItButton styles={styles} label="Abrir página de Epic" url={HELP_URLS.epic} />
+            </View>
+            {!epicAccountId && (
+              <Text style={styles.hint}>
+                Con sesión abierta en epicgames.com, pulsa el botón de arriba: te lleva a una
+                página en blanco con solo un bloque de texto — no hace falta que entiendas lo
+                que pone. Mantén el dedo pulsado sobre ese texto, elige «Seleccionar todo»,
+                cópialo entero (todo el bloque, no hace falta buscar nada dentro) y pégalo tal
+                cual en el campo de abajo: la app saca el código sola.
+              </Text>
+            )}
+            <View style={styles.addRowMultiline}>
+              <TextInput
+                style={styles.inputMultiline}
+                placeholder="Pega aquí todo el texto de la página"
+                placeholderTextColor={colors.textMuted}
+                value={epicCode}
+                onChangeText={setEpicCode}
+                autoCapitalize="none"
+                autoCorrect={false}
+                multiline
+                textAlignVertical="top"
+                onFocus={() => scrollToField('epicCode')}
+                onLayout={rememberFieldY('epicCode')}
+              />
+              <Pressable
+                style={[styles.addButton, styles.addButtonEnd]}
+                onPress={onConnectEpic}
+                disabled={connectingEpic}
+              >
+                {connectingEpic ? (
+                  <ActivityIndicator color={colors.bg} />
+                ) : (
+                  <Text style={styles.addButtonText}>{epicAccountId ? 'Reconectar' : 'Conectar'}</Text>
+                )}
+              </Pressable>
+            </View>
+
+            <View style={styles.settingsButtons}>
+              <Pressable style={styles.secondaryButton} onPress={() => setView('library')}>
+                <Text style={styles.secondaryButtonText}>{firstRun ? 'Saltar por ahora' : 'Cancelar'}</Text>
+              </Pressable>
+              <Pressable style={styles.addButton} onPress={onSaveSettings} disabled={savingSettings}>
+                {savingSettings ? (
+                  <ActivityIndicator color={colors.bg} />
+                ) : (
+                  <Text style={styles.addButtonText}>Guardar</Text>
+                )}
+              </Pressable>
+            </View>
+          </>
         )}
-        <View style={styles.addRowMultiline}>
-          <TextInput
-            style={styles.inputMultiline}
-            placeholder="Pega aquí todo el texto de la página"
-            placeholderTextColor={COLORS.textMuted}
-            value={epicCode}
-            onChangeText={setEpicCode}
-            autoCapitalize="none"
-            autoCorrect={false}
-            multiline
-            textAlignVertical="top"
-            onFocus={() => scrollToField('epicCode')}
-            onLayout={rememberFieldY('epicCode')}
-          />
-          <Pressable
-            style={[styles.addButton, styles.addButtonEnd]}
-            onPress={onConnectEpic}
-            disabled={connectingEpic}
-          >
-            {connectingEpic ? (
-              <ActivityIndicator color={COLORS.bg} />
-            ) : (
-              <Text style={styles.addButtonText}>{epicAccountId ? 'Reconectar' : 'Conectar'}</Text>
-            )}
-          </Pressable>
-        </View>
-
-        <View style={styles.settingsButtons}>
-          <Pressable style={styles.secondaryButton} onPress={() => setView('library')}>
-            <Text style={styles.secondaryButtonText}>{firstRun ? 'Saltar por ahora' : 'Cancelar'}</Text>
-          </Pressable>
-          <Pressable style={styles.addButton} onPress={onSaveSettings} disabled={savingSettings}>
-            {savingSettings ? (
-              <ActivityIndicator color={COLORS.bg} />
-            ) : (
-              <Text style={styles.addButtonText}>Guardar</Text>
-            )}
-          </Pressable>
-        </View>
         </ScrollView>
       </KeyboardAvoidingView>
     );
@@ -952,7 +1164,7 @@ export default function App() {
       style={styles.flexBg}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={colors.bg} />
       <FlatList
         ref={scrollRef}
         style={styles.flexBg}
@@ -1004,7 +1216,7 @@ export default function App() {
 
             <Pressable style={styles.syncButton} onPress={onSync} disabled={syncing}>
               {syncing ? (
-                <ActivityIndicator color={COLORS.bg} />
+                <ActivityIndicator color={colors.bg} />
               ) : (
                 <Text style={styles.addButtonText}>Sincronizar con Steam</Text>
               )}
@@ -1013,7 +1225,7 @@ export default function App() {
 
             <Pressable style={styles.syncButton} onPress={onXboxSync} disabled={xboxSyncing}>
               {xboxSyncing ? (
-                <ActivityIndicator color={COLORS.bg} />
+                <ActivityIndicator color={colors.bg} />
               ) : (
                 <Text style={styles.addButtonText}>Sincronizar con Xbox</Text>
               )}
@@ -1022,7 +1234,7 @@ export default function App() {
 
             <Pressable style={styles.syncButton} onPress={onEpicSync} disabled={epicSyncing}>
               {epicSyncing ? (
-                <ActivityIndicator color={COLORS.bg} />
+                <ActivityIndicator color={colors.bg} />
               ) : (
                 <Text style={styles.addButtonText}>Sincronizar con Epic</Text>
               )}
@@ -1033,20 +1245,20 @@ export default function App() {
               <TextInput
                 style={styles.input}
                 placeholder="Título del juego"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={title}
                 onChangeText={setTitle}
                 onFocus={() => scrollToField('title')}
               />
               <Pressable style={styles.addButton} onPress={onAdd} disabled={saving}>
-                {saving ? <ActivityIndicator color={COLORS.bg} /> : <Text style={styles.addButtonText}>Añadir</Text>}
+                {saving ? <ActivityIndicator color={colors.bg} /> : <Text style={styles.addButtonText}>Añadir</Text>}
               </Pressable>
             </View>
           </View>
         }
         ListEmptyComponent={
           !db ? (
-            <ActivityIndicator color={COLORS.accent} style={{ marginTop: 24 }} />
+            <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
           ) : (
             <Text style={styles.empty}>{TAB_EMPTY_MESSAGES[currentTab]}</Text>
           )
@@ -1117,19 +1329,27 @@ export default function App() {
         games={rouletteGames}
         onClose={() => setRouletteOpen(false)}
         onOpenGame={openGame}
+        colors={colors}
+        styles={styles}
       />
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
+// El StyleSheet ya no es un objeto fijo a nivel de módulo: depende del
+// tema activo, así que se reconstruye (memoizado con useMemo en App) cada
+// vez que `colors` cambia. StyleSheet.create() sigue siendo seguro llamarlo
+// más de una vez — solo registra estilos, no hay coste de "recrear una
+// hoja de estilos global".
+function createStyles(colors) {
+  return StyleSheet.create({
   flexBg: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
     paddingTop: 56,
     paddingHorizontal: 20,
   },
@@ -1141,7 +1361,7 @@ const styles = StyleSheet.create({
   // el ScrollView esté bien puesto.
   settingsContent: {
     flexGrow: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
     paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 40,
@@ -1152,39 +1372,39 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   kicker: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 3,
   },
   title: {
-    color: COLORS.text,
+    color: colors.text,
     fontSize: 30,
     fontWeight: '700',
     marginTop: 4,
     marginBottom: 18,
   },
   sectionLabel: {
-    color: COLORS.accent2,
+    color: colors.accent2,
     fontSize: 14,
     fontWeight: '700',
     marginTop: 20,
   },
   intro: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 13,
     lineHeight: 19,
     marginBottom: 8,
   },
   label: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 13,
     marginBottom: 6,
     marginTop: 12,
     flexShrink: 1,
   },
   hint: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 12,
     lineHeight: 17,
     marginBottom: 8,
@@ -1196,42 +1416,42 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   getItButton: {
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   getItButtonText: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
   },
   error: {
-    color: COLORS.danger,
+    color: colors.danger,
     marginBottom: 12,
   },
   gearButton: {
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gearButtonText: { color: COLORS.text, fontSize: 18 },
+  gearButtonText: { color: colors.text, fontSize: 18 },
   syncButton: {
-    backgroundColor: COLORS.accent2,
+    backgroundColor: colors.accent2,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
     marginBottom: 8,
   },
   syncInfo: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 12,
     marginBottom: 18,
     textAlign: 'center',
@@ -1247,10 +1467,10 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: COLORS.text,
-    backgroundColor: COLORS.glass,
+    color: colors.text,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -1261,10 +1481,10 @@ const styles = StyleSheet.create({
   // los deja con scroll horizontal dentro de la caja y solo se ve un trozo,
   // así que crecen verticalmente para mostrar el texto pegado entero.
   inputMultiline: {
-    color: COLORS.text,
-    backgroundColor: COLORS.glass,
+    color: colors.text,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -1279,7 +1499,7 @@ const styles = StyleSheet.create({
     maxHeight: 260,
   },
   addButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingHorizontal: 18,
     justifyContent: 'center',
@@ -1288,15 +1508,15 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     paddingVertical: 10,
   },
-  addButtonText: { color: COLORS.bg, fontWeight: '700' },
+  addButtonText: { color: colors.bg, fontWeight: '700' },
   secondaryButton: {
     borderRadius: 10,
     paddingHorizontal: 18,
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
   },
-  secondaryButtonText: { color: COLORS.text, fontWeight: '700' },
+  secondaryButtonText: { color: colors.text, fontWeight: '700' },
   settingsButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -1309,13 +1529,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  empty: { color: COLORS.textMuted, marginTop: 24, textAlign: 'center' },
+  empty: { color: colors.textMuted, marginTop: 24, textAlign: 'center' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
@@ -1326,32 +1546,32 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 12,
   },
-  cardIconPlaceholder: { backgroundColor: COLORS.stroke },
-  cardTitle: { color: COLORS.text, fontSize: 16, fontWeight: '600' },
-  cardPlatform: { color: COLORS.accent2, fontSize: 12, marginTop: 3 },
+  cardIconPlaceholder: { backgroundColor: colors.stroke },
+  cardTitle: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  cardPlatform: { color: colors.accent2, fontSize: 12, marginTop: 3 },
   cardFlags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  cardAchievements: { color: COLORS.textMuted, fontSize: 12, marginTop: 3 },
-  cardFlag: { color: COLORS.textMuted, fontSize: 12, marginTop: 3 },
+  cardAchievements: { color: colors.textMuted, fontSize: 12, marginTop: 3 },
+  cardFlag: { color: colors.textMuted, fontSize: 12, marginTop: 3 },
   cardRight: { alignItems: 'flex-end', gap: 8 },
-  cardHours: { color: COLORS.accent, fontWeight: '700' },
+  cardHours: { color: colors.accent, fontWeight: '700' },
   cardActions: { flexDirection: 'row', gap: 6 },
   cardActionBtn: {
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardActionBtnActive: {
-    backgroundColor: COLORS.accent2,
-    borderColor: COLORS.accent2,
+    backgroundColor: colors.accent2,
+    borderColor: colors.accent2,
   },
   cardActionBtnText: { fontSize: 13 },
 
-  // --- pestañas "Mis juegos" / "Lista de siguientes" / "Jugando ahora" ---
+  // --- pestañas (biblioteca y Ajustes comparten el mismo estilo visual) ---
   tabsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -1362,20 +1582,20 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 8,
     alignItems: 'center',
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
   },
   tabButtonActive: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
-  tabButtonText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700' },
-  tabButtonTextActive: { color: COLORS.bg },
+  tabButtonText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+  tabButtonTextActive: { color: colors.bg },
   rouletteButton: {
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
@@ -1383,42 +1603,90 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.4 },
 
+  // --- Ajustes: Apariencia (paleta de temas) ---
+  themeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
+  },
+  themeCard: {
+    width: '30%',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  themeCardActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.glass,
+  },
+  themeSwatch: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  themeSwatchDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  themeCheck: {
+    position: 'absolute',
+    top: 2,
+    right: 4,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  themeName: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+
   // --- ficha de un juego ---
-  backLink: { color: COLORS.accent, fontWeight: '700', marginBottom: 18 },
+  backLink: { color: colors.accent, fontWeight: '700', marginBottom: 18 },
   gameHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 8 },
   gameHeaderIcon: { width: 64, height: 64, borderRadius: 12 },
   statsRow: { gap: 4, marginBottom: 8 },
-  statBig: { color: COLORS.text, fontSize: 14 },
+  statBig: { color: colors.text, fontSize: 14 },
   sessionRow: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
     borderRadius: 10,
     padding: 12,
     marginTop: 8,
     alignItems: 'center',
   },
-  sessionMinutes: { color: COLORS.accent, fontWeight: '700', width: 56 },
-  sessionWhen: { color: COLORS.text, fontSize: 13 },
-  sessionMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+  sessionMinutes: { color: colors.accent, fontWeight: '700', width: 56 },
+  sessionWhen: { color: colors.text, fontSize: 13 },
+  sessionMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   achievementRow: {
     flexDirection: 'row',
     gap: 12,
     alignItems: 'center',
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
     borderRadius: 10,
     padding: 12,
     marginTop: 8,
   },
   achievementIcon: { fontSize: 20 },
-  achievementName: { color: COLORS.text, fontWeight: '600' },
-  achievementDesc: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
-  achievementDate: { color: COLORS.textMuted, fontSize: 11 },
-  textMuted: { color: COLORS.textMuted },
+  achievementName: { color: colors.text, fontWeight: '600' },
+  achievementDesc: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  achievementDate: { color: colors.textMuted, fontSize: 11 },
+  textMuted: { color: colors.textMuted },
 
   // --- ruleta ---
   modalOverlay: {
@@ -1431,9 +1699,9 @@ const styles = StyleSheet.create({
   modalBox: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
     borderRadius: 16,
     padding: 20,
   },
@@ -1444,29 +1712,30 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
   },
-  modalCloseBtnText: { color: COLORS.text, fontSize: 18, lineHeight: 20 },
+  modalCloseBtnText: { color: colors.text, fontSize: 18, lineHeight: 20 },
   wheelBox: {
     minHeight: 120,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.stroke,
+    borderColor: colors.stroke,
     borderRadius: 12,
     paddingHorizontal: 16,
     marginVertical: 16,
   },
   wheelSpinningName: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
   },
-  wheelResult: { color: COLORS.text, fontSize: 16, textAlign: 'center' },
-  wheelResultName: { color: COLORS.accent, fontWeight: '700' },
-});
+  wheelResult: { color: colors.text, fontSize: 16, textAlign: 'center' },
+  wheelResultName: { color: colors.accent, fontWeight: '700' },
+  });
+}
