@@ -1210,7 +1210,7 @@ export default function App() {
                 onPress={() => rouletteGames.length > 0 && setRouletteOpen(true)}
                 disabled={rouletteGames.length === 0}
               >
-                <Text style={styles.addButtonText}>◉ Ruleta</Text>
+                <Text style={styles.rouletteButtonText}>◉ Ruleta</Text>
               </Pressable>
             )}
 
@@ -1601,6 +1601,10 @@ function createStyles(colors) {
     alignItems: 'center',
     marginBottom: 10,
   },
+  // Fondo de cristal (translúcido, casi el color de la propia pantalla), a
+  // diferencia de addButtonText que asume un fondo sólido de acento debajo
+  // — aquí el texto necesita su propio color o queda casi invisible.
+  rouletteButtonText: { color: colors.accent, fontWeight: '700' },
   buttonDisabled: { opacity: 0.4 },
 
   // --- Ajustes: Apariencia (paleta de temas) ---
