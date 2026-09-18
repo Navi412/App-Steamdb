@@ -190,14 +190,18 @@ export default function App() {
   const [epicAccountId, setEpicAccountId] = useState(null);
 
   // Android hace hueco para el teclado (windowSoftInputMode="resize", el
-  // valor por defecto de Expo) pero no desplaza el ScrollView hasta el
-  // campo que estás rellenando, así que si está más abajo del hueco visible
-  // el teclado lo tapa igual. Guardamos la posición Y de cada campo al
-  // montar (onLayout) y, cuando el teclado termina de aparecer, desplazamos
-  // el ScrollView hasta ahí. `keyboardDidShow` (no onFocus a secas) es
-  // necesario porque si se dispara antes de que el teclado haya hecho hueco
-  // el scroll cae corto.
-  const settingsScrollRef = useRef(null);
+  // valor por defecto de Expo) pero no desplaza el contenido hasta el campo
+  // que estás rellenando, así que si está más abajo del hueco visible el
+  // teclado lo tapa igual. Guardamos la posición Y de cada campo al montar
+  // (onLayout) y, cuando el teclado termina de aparecer, desplazamos hasta
+  // ahí. `keyboardDidShow` (no onFocus a secas) es necesario porque si se
+  // dispara antes de que el teclado haya hecho hueco el scroll cae corto.
+  //
+  // `scrollRef` apunta al ScrollView de Ajustes o al FlatList de la
+  // biblioteca según cuál esté montado (solo hay una vista activa a la
+  // vez): tienen APIs de scroll distintas (`scrollTo` vs `scrollToOffset`),
+  // así que `scrollActiveTo` prueba ambas en vez de asumir cuál es.
+  const scrollRef = useRef(null);
   const fieldOffsets = useRef({});
   const focusedField = useRef(null);
 
@@ -207,16 +211,24 @@ export default function App() {
     };
   }
 
+  function scrollActiveTo(y) {
+    const target = Math.max(y - 16, 0);
+    const ref = scrollRef.current;
+    if (!ref) return;
+    if (typeof ref.scrollToOffset === 'function') ref.scrollToOffset({ offset: target, animated: true });
+    else if (typeof ref.scrollTo === 'function') ref.scrollTo({ y: target, animated: true });
+  }
+
   function scrollToField(key) {
     focusedField.current = key;
     const y = fieldOffsets.current[key];
-    if (y != null) settingsScrollRef.current?.scrollTo({ y: Math.max(y - 16, 0), animated: true });
+    if (y != null) scrollActiveTo(y);
   }
 
   useEffect(() => {
     const sub = Keyboard.addListener('keyboardDidShow', () => {
       const y = fieldOffsets.current[focusedField.current];
-      if (y != null) settingsScrollRef.current?.scrollTo({ y: Math.max(y - 16, 0), animated: true });
+      if (y != null) scrollActiveTo(y);
     });
     return () => sub.remove();
   }, []);
@@ -396,7 +408,7 @@ export default function App() {
       >
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
         <ScrollView
-          ref={settingsScrollRef}
+          ref={scrollRef}
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
@@ -536,95 +548,111 @@ export default function App() {
     );
   }
 
+  // La biblioteca vive entera dentro de un único FlatList (cabecera +
+  // tarjetas), en vez de un View fijo con el FlatList encajado dentro:
+  // así, cuando el teclado se abre y Android encoge la ventana
+  // (windowSoftInputMode="resize"), lo que se encoge es el contenido
+  // scrolleable completo en vez de solo la lista de juegos — si esta
+  // quedaba con una altura casi nula (o cero) no había nada scrolleable
+  // que permitiera ver el resto de la pantalla. `scrollToField('title')`
+  // reutiliza el mismo mecanismo de Ajustes para que el campo de añadir
+  // juego se lleve a la vista cuando aparece el teclado.
   return (
     <KeyboardAvoidingView
       style={styles.flexBg}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.kicker}>BACKLOG</Text>
-          <Text style={styles.title}>Mi biblioteca</Text>
-        </View>
-        <Pressable style={styles.gearButton} onPress={() => setView('settings')}>
-          <Text style={styles.gearButtonText}>⚙</Text>
-        </Pressable>
-      </View>
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      <Pressable style={styles.syncButton} onPress={onSync} disabled={syncing}>
-        {syncing ? (
-          <ActivityIndicator color={COLORS.bg} />
-        ) : (
-          <Text style={styles.addButtonText}>Sincronizar con Steam</Text>
-        )}
-      </Pressable>
-      {lastSync && <Text style={styles.syncInfo}>Última sincronización: {lastSync}</Text>}
-
-      <Pressable style={styles.syncButton} onPress={onXboxSync} disabled={xboxSyncing}>
-        {xboxSyncing ? (
-          <ActivityIndicator color={COLORS.bg} />
-        ) : (
-          <Text style={styles.addButtonText}>Sincronizar con Xbox</Text>
-        )}
-      </Pressable>
-      {lastXboxSync && <Text style={styles.syncInfo}>Última sincronización: {lastXboxSync}</Text>}
-
-      <Pressable style={styles.syncButton} onPress={onEpicSync} disabled={epicSyncing}>
-        {epicSyncing ? (
-          <ActivityIndicator color={COLORS.bg} />
-        ) : (
-          <Text style={styles.addButtonText}>Sincronizar con Epic</Text>
-        )}
-      </Pressable>
-      {lastEpicSync && <Text style={styles.syncInfo}>Última sincronización: {lastEpicSync}</Text>}
-
-      <View style={styles.addRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Título del juego"
-          placeholderTextColor={COLORS.textMuted}
-          value={title}
-          onChangeText={setTitle}
-        />
-        <Pressable style={styles.addButton} onPress={onAdd} disabled={saving}>
-          {saving ? <ActivityIndicator color={COLORS.bg} /> : <Text style={styles.addButtonText}>Añadir</Text>}
-        </Pressable>
-      </View>
-
-      {!db ? (
-        <ActivityIndicator color={COLORS.accent} style={{ marginTop: 24 }} />
-      ) : (
-        <FlatList
-          style={styles.list}
-          data={games}
-          keyExtractor={(g) => String(g.id)}
-          ListEmptyComponent={<Text style={styles.empty}>Todavía no hay juegos. Añade uno arriba o sincroniza con Steam.</Text>}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              {item.iconUrl ? (
-                <Image source={{ uri: item.iconUrl }} style={styles.cardIcon} />
-              ) : (
-                <View style={[styles.cardIcon, styles.cardIconPlaceholder]} />
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardPlatform}>{item.platforms.join(' · ')}</Text>
-                {item.achievementsTotal > 0 && (
-                  <Text style={styles.cardAchievements}>
-                    🏆 {item.achievementsUnlocked}/{item.achievementsTotal}
-                  </Text>
-                )}
+      <FlatList
+        ref={scrollRef}
+        style={styles.flexBg}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        data={db ? games : []}
+        keyExtractor={(g) => String(g.id)}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.headerRow}>
+              <View>
+                <Text style={styles.kicker}>BACKLOG</Text>
+                <Text style={styles.title}>Mi biblioteca</Text>
               </View>
-              <Text style={styles.cardHours}>{formatHours(item.totalMinutes)}</Text>
+              <Pressable style={styles.gearButton} onPress={() => setView('settings')}>
+                <Text style={styles.gearButtonText}>⚙</Text>
+              </Pressable>
             </View>
-          )}
-        />
-      )}
-      </View>
+
+            {error && <Text style={styles.error}>{error}</Text>}
+
+            <Pressable style={styles.syncButton} onPress={onSync} disabled={syncing}>
+              {syncing ? (
+                <ActivityIndicator color={COLORS.bg} />
+              ) : (
+                <Text style={styles.addButtonText}>Sincronizar con Steam</Text>
+              )}
+            </Pressable>
+            {lastSync && <Text style={styles.syncInfo}>Última sincronización: {lastSync}</Text>}
+
+            <Pressable style={styles.syncButton} onPress={onXboxSync} disabled={xboxSyncing}>
+              {xboxSyncing ? (
+                <ActivityIndicator color={COLORS.bg} />
+              ) : (
+                <Text style={styles.addButtonText}>Sincronizar con Xbox</Text>
+              )}
+            </Pressable>
+            {lastXboxSync && <Text style={styles.syncInfo}>Última sincronización: {lastXboxSync}</Text>}
+
+            <Pressable style={styles.syncButton} onPress={onEpicSync} disabled={epicSyncing}>
+              {epicSyncing ? (
+                <ActivityIndicator color={COLORS.bg} />
+              ) : (
+                <Text style={styles.addButtonText}>Sincronizar con Epic</Text>
+              )}
+            </Pressable>
+            {lastEpicSync && <Text style={styles.syncInfo}>Última sincronización: {lastEpicSync}</Text>}
+
+            <View style={styles.addRow} onLayout={rememberFieldY('title')}>
+              <TextInput
+                style={styles.input}
+                placeholder="Título del juego"
+                placeholderTextColor={COLORS.textMuted}
+                value={title}
+                onChangeText={setTitle}
+                onFocus={() => scrollToField('title')}
+              />
+              <Pressable style={styles.addButton} onPress={onAdd} disabled={saving}>
+                {saving ? <ActivityIndicator color={COLORS.bg} /> : <Text style={styles.addButtonText}>Añadir</Text>}
+              </Pressable>
+            </View>
+          </View>
+        }
+        ListEmptyComponent={
+          !db ? (
+            <ActivityIndicator color={COLORS.accent} style={{ marginTop: 24 }} />
+          ) : (
+            <Text style={styles.empty}>Todavía no hay juegos. Añade uno arriba o sincroniza con Steam.</Text>
+          )
+        }
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            {item.iconUrl ? (
+              <Image source={{ uri: item.iconUrl }} style={styles.cardIcon} />
+            ) : (
+              <View style={[styles.cardIcon, styles.cardIconPlaceholder]} />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardTitle}>{item.title}</Text>
+              <Text style={styles.cardPlatform}>{item.platforms.join(' · ')}</Text>
+              {item.achievementsTotal > 0 && (
+                <Text style={styles.cardAchievements}>
+                  🏆 {item.achievementsUnlocked}/{item.achievementsTotal}
+                </Text>
+              )}
+            </View>
+            <Text style={styles.cardHours}>{formatHours(item.totalMinutes)}</Text>
+          </View>
+        )}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -790,7 +818,12 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 24,
   },
-  list: { flex: 1 },
+  listContent: {
+    flexGrow: 1,
+    paddingTop: 56,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
   empty: { color: COLORS.textMuted, marginTop: 24, textAlign: 'center' },
   card: {
     flexDirection: 'row',
