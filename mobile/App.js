@@ -409,7 +409,7 @@ export default function App() {
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={styles.container}
+          contentContainerStyle={styles.settingsContent}
           keyboardShouldPersistTaps="handled"
         >
         <Text style={styles.kicker}>AJUSTES</Text>
@@ -668,6 +668,19 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingHorizontal: 20,
   },
+  // Para el `contentContainerStyle` de un ScrollView hace falta `flexGrow`,
+  // no `flex`: con `flex: 1` el contenido se queda encajado a la altura
+  // visible de la pantalla y todo lo que no cabe (el botón «Guardar» del
+  // final, sobre todo si hay campos con texto largo pegado) queda fuera y
+  // sin forma de bajar hasta ahí — la pantalla parece no scrollear aunque
+  // el ScrollView esté bien puesto.
+  settingsContent: {
+    flexGrow: 1,
+    backgroundColor: COLORS.bg,
+    paddingTop: 56,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -791,7 +804,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     minHeight: 44,
-    maxHeight: 140,
+    // 140 se quedaba corto para el bloque de texto de Epic (bastante más
+    // largo que una API key o una URL): el campo dejaba de crecer y el
+    // resto del texto pegado quedaba fuera de la vista, solo alcanzable
+    // scrolleando dentro de la caja — un gesto que compite con el scroll
+    // de la pantalla que lo envuelve y que en Android no siempre gana.
+    // 260 cubre ese bloque completo en la mayoría de los casos sin
+    // depender de ese scroll interno.
+    maxHeight: 260,
   },
   addButton: {
     backgroundColor: COLORS.accent,
