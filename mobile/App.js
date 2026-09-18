@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -188,6 +189,38 @@ export default function App() {
   const [epicCode, setEpicCode] = useState('');
   const [epicAccountId, setEpicAccountId] = useState(null);
 
+  // Android hace hueco para el teclado (windowSoftInputMode="resize", el
+  // valor por defecto de Expo) pero no desplaza el ScrollView hasta el
+  // campo que estás rellenando, así que si está más abajo del hueco visible
+  // el teclado lo tapa igual. Guardamos la posición Y de cada campo al
+  // montar (onLayout) y, cuando el teclado termina de aparecer, desplazamos
+  // el ScrollView hasta ahí. `keyboardDidShow` (no onFocus a secas) es
+  // necesario porque si se dispara antes de que el teclado haya hecho hueco
+  // el scroll cae corto.
+  const settingsScrollRef = useRef(null);
+  const fieldOffsets = useRef({});
+  const focusedField = useRef(null);
+
+  function rememberFieldY(key) {
+    return (e) => {
+      fieldOffsets.current[key] = e.nativeEvent.layout.y;
+    };
+  }
+
+  function scrollToField(key) {
+    focusedField.current = key;
+    const y = fieldOffsets.current[key];
+    if (y != null) settingsScrollRef.current?.scrollTo({ y: Math.max(y - 16, 0), animated: true });
+  }
+
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      const y = fieldOffsets.current[focusedField.current];
+      if (y != null) settingsScrollRef.current?.scrollTo({ y: Math.max(y - 16, 0), animated: true });
+    });
+    return () => sub.remove();
+  }, []);
+
   useEffect(() => {
     try {
       const database = openDatabase();
@@ -362,14 +395,20 @@ export default function App() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={settingsScrollRef}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={styles.kicker}>AJUSTES</Text>
         <Text style={styles.title}>Cuentas</Text>
 
         {firstRun && (
           <Text style={styles.intro}>
             Para sincronizar hace falta al menos Steam. Pulsa el botón junto a cada campo:
-            te lleva a la página exacta donde se consigue, cópialo y pégalo aquí.
+            te lleva a la página exacta donde se consigue, cópialo y pégalo aquí. Xbox y
+            Epic son opcionales — si no te interesan, déjalos en blanco y pulsa «Saltar
+            por ahora» o «Guardar» tal cual.
           </Text>
         )}
 
@@ -390,6 +429,8 @@ export default function App() {
           autoCorrect={false}
           multiline
           textAlignVertical="top"
+          onFocus={() => scrollToField('apiKey')}
+          onLayout={rememberFieldY('apiKey')}
         />
 
         <View style={styles.labelRow}>
@@ -412,6 +453,8 @@ export default function App() {
           autoCorrect={false}
           multiline
           textAlignVertical="top"
+          onFocus={() => scrollToField('steamId')}
+          onLayout={rememberFieldY('steamId')}
         />
 
         <Text style={styles.sectionLabel}>Xbox (opcional)</Text>
@@ -429,6 +472,8 @@ export default function App() {
           autoCorrect={false}
           multiline
           textAlignVertical="top"
+          onFocus={() => scrollToField('xboxApiKey')}
+          onLayout={rememberFieldY('xboxApiKey')}
         />
 
         <Text style={styles.sectionLabel}>Epic Games (opcional)</Text>
@@ -440,14 +485,17 @@ export default function App() {
         </View>
         {!epicAccountId && (
           <Text style={styles.hint}>
-            Con sesión abierta en epicgames.com, pulsa el botón de arriba y copia lo que
-            aparece entre comillas después de authorizationCode (o pega el texto entero).
+            Con sesión abierta en epicgames.com, pulsa el botón de arriba: te lleva a una
+            página en blanco con solo un bloque de texto — no hace falta que entiendas lo
+            que pone. Mantén el dedo pulsado sobre ese texto, elige «Seleccionar todo»,
+            cópialo entero (todo el bloque, no hace falta buscar nada dentro) y pégalo tal
+            cual en el campo de abajo: la app saca el código sola.
           </Text>
         )}
         <View style={styles.addRowMultiline}>
           <TextInput
             style={styles.inputMultiline}
-            placeholder="authorizationCode, o el texto entero"
+            placeholder="Pega aquí todo el texto de la página"
             placeholderTextColor={COLORS.textMuted}
             value={epicCode}
             onChangeText={setEpicCode}
@@ -455,6 +503,8 @@ export default function App() {
             autoCorrect={false}
             multiline
             textAlignVertical="top"
+            onFocus={() => scrollToField('epicCode')}
+            onLayout={rememberFieldY('epicCode')}
           />
           <Pressable
             style={[styles.addButton, styles.addButtonEnd]}
@@ -470,11 +520,9 @@ export default function App() {
         </View>
 
         <View style={styles.settingsButtons}>
-          {!firstRun && (
-            <Pressable style={styles.secondaryButton} onPress={() => setView('library')}>
-              <Text style={styles.secondaryButtonText}>Cancelar</Text>
-            </Pressable>
-          )}
+          <Pressable style={styles.secondaryButton} onPress={() => setView('library')}>
+            <Text style={styles.secondaryButtonText}>{firstRun ? 'Saltar por ahora' : 'Cancelar'}</Text>
+          </Pressable>
           <Pressable style={styles.addButton} onPress={onSaveSettings} disabled={savingSettings}>
             {savingSettings ? (
               <ActivityIndicator color={COLORS.bg} />
