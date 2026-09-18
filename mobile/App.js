@@ -3,8 +3,11 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  KeyboardAvoidingView,
   Linking,
+  Platform,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -81,6 +84,43 @@ function extractEpicCode(raw) {
   return code.replace(/[^A-Za-z0-9]/g, '');
 }
 
+// Igual que setup/validate.js -> resolveSteamId, duplicado aquí por la misma
+// razón que extractEpicCode (ese módulo también arrastra epic/gog/eden, que
+// tocan node:fs y rompen el bundle de Metro). En el móvil el botón "Ver mi
+// perfil" abre la app de Steam si está instalada, no el navegador, así que
+// no hay forma de ver el SteamID64 en una barra de direcciones: aceptar
+// también la URL del perfil (o el nombre de usuario) y resolverla aquí es
+// lo que hace que copiar el enlace desde la app de Steam sea suficiente.
+const STEAM_ID_RE = /^\d{17}$/;
+
+async function resolveSteamId(input, apiKey) {
+  const value = String(input || '').trim();
+  if (!value) return { error: 'pega tu perfil o tu SteamID64' };
+  if (STEAM_ID_RE.test(value)) return { steamId: value };
+
+  const profilesMatch = value.match(/steamcommunity\.com\/profiles\/(\d{17})/);
+  if (profilesMatch) return { steamId: profilesMatch[1] };
+
+  const idMatch = value.match(/steamcommunity\.com\/id\/([^/?#]+)/);
+  const vanity = idMatch ? decodeURIComponent(idMatch[1]) : value;
+
+  if (!apiKey) {
+    return { error: 'necesitas rellenar la Steam API Key (arriba) para resolver un nombre de perfil' };
+  }
+  try {
+    const url = new URL('https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/');
+    url.searchParams.set('key', apiKey);
+    url.searchParams.set('vanityurl', vanity);
+    const res = await fetch(url);
+    if (!res.ok) return { error: `Steam respondió ${res.status} al resolver "${vanity}"` };
+    const body = await res.json();
+    if (body?.response?.success === 1) return { steamId: body.response.steamid };
+    return { error: body?.response?.message || `no se encontró ningún perfil "${vanity}"` };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
 // authStore para Epic respaldado en /db/settings.js (ver comentario de
 // fase 5 arriba) en vez del fichero data/epic_auth.json que usa el
 // escritorio.
@@ -134,6 +174,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [xboxSyncing, setXboxSyncing] = useState(false);
   const [epicSyncing, setEpicSyncing] = useState(false);
@@ -209,12 +250,25 @@ export default function App() {
     }
   }
 
-  function onSaveSettings() {
-    if (!db) return;
-    settingsDb.setSetting(db, 'steamApiKey', apiKey.trim());
-    settingsDb.setSetting(db, 'steamId', steamId.trim());
-    settingsDb.setSetting(db, 'openxblApiKey', xboxApiKey.trim());
+  async function onSaveSettings() {
+    if (!db || savingSettings) return;
     setError(null);
+    const trimmedSteamId = steamId.trim();
+    let resolvedSteamId = trimmedSteamId;
+    if (trimmedSteamId && !STEAM_ID_RE.test(trimmedSteamId)) {
+      setSavingSettings(true);
+      const { steamId: resolved, error: resolveError } = await resolveSteamId(trimmedSteamId, apiKey.trim());
+      setSavingSettings(false);
+      if (resolveError) {
+        setError(`SteamID: ${resolveError}`);
+        return;
+      }
+      resolvedSteamId = resolved;
+      setSteamId(resolvedSteamId);
+    }
+    settingsDb.setSetting(db, 'steamApiKey', apiKey.trim());
+    settingsDb.setSetting(db, 'steamId', resolvedSteamId);
+    settingsDb.setSetting(db, 'openxblApiKey', xboxApiKey.trim());
     setView('library');
   }
 
@@ -303,8 +357,12 @@ export default function App() {
   if (view === 'settings') {
     const firstRun = !apiKey || !steamId;
     return (
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.flexBg}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.kicker}>AJUSTES</Text>
         <Text style={styles.title}>Cuentas</Text>
 
@@ -336,15 +394,20 @@ export default function App() {
           <Text style={styles.label}>SteamID64</Text>
           <GetItButton label="Ver mi perfil" url={HELP_URLS.steamProfile} />
         </View>
+        <Text style={styles.hint}>
+          El botón de arriba suele abrir la app de Steam en vez del navegador, y ahí no se
+          ve ningún número. En la app, pulsa el icono de compartir de tu perfil (⋯ → Compartir
+          perfil → Copiar enlace) y pega ese enlace aquí abajo — la app saca el SteamID64 sola.
+          También vale pegar directamente el número de 17 dígitos si ya lo tienes.
+        </Text>
         <TextInput
           style={styles.input}
-          placeholder="76561198..."
+          placeholder="Enlace de tu perfil o tu SteamID64"
           placeholderTextColor={COLORS.textMuted}
           value={steamId}
           onChangeText={setSteamId}
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="number-pad"
         />
 
         <Text style={styles.sectionLabel}>Xbox (opcional)</Text>
@@ -400,16 +463,25 @@ export default function App() {
               <Text style={styles.secondaryButtonText}>Cancelar</Text>
             </Pressable>
           )}
-          <Pressable style={styles.addButton} onPress={onSaveSettings}>
-            <Text style={styles.addButtonText}>Guardar</Text>
+          <Pressable style={styles.addButton} onPress={onSaveSettings} disabled={savingSettings}>
+            {savingSettings ? (
+              <ActivityIndicator color={COLORS.bg} />
+            ) : (
+              <Text style={styles.addButtonText}>Guardar</Text>
+            )}
           </Pressable>
         </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.flexBg}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
       <View style={styles.headerRow}>
         <View>
@@ -492,11 +564,16 @@ export default function App() {
           )}
         />
       )}
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flexBg: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.bg,
