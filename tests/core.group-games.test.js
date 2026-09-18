@@ -112,6 +112,15 @@ test('sin encuadre guardado el grupo queda centrado', () => {
   assert.equal(g.coverPosY, 50);
 });
 
+test('inPlayingNow (como inToPlay) es true si cualquier fila del grupo lo está, no solo la principal', () => {
+  const [g] = groupGames([
+    row({ id: 1, platform: 'Steam', source: 'steam', totalMinutes: 999, inPlayingNow: false }),
+    row({ id: 2, platform: 'Xbox', source: 'xbox', totalMinutes: 10, inPlayingNow: true }),
+  ]);
+  assert.equal(g.id, 1); // la principal (más jugada) es la de Steam, sin el flag
+  assert.equal(g.inPlayingNow, true);
+});
+
 test('dos filas de la misma plataforma se dedupe en una sola etiqueta', () => {
   const [g] = groupGames([
     row({ id: 1, platform: 'Xbox', source: 'xbox', title: 'Death Stranding', totalMinutes: 10 }),

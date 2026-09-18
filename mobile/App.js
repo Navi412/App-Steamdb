@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Image,
   Keyboard,
   KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -40,6 +42,13 @@ import {
 // GOG se queda fuera: no tiene API, Galaxy solo guarda las horas en su
 // propia base SQLite local dentro del PC, y no hay forma de leer eso desde
 // el teléfono.
+//
+// Fase 6: pestañas "Lista de siguientes" / "Jugando ahora" (db/to-play.js,
+// db/playing-now.js) y ficha de cada juego (sesiones y logros vía
+// db/sessions.js y db/achievements.js) — mismos módulos que usa /api,
+// reutilizados tal cual porque solo hablan con `db` y no con node:fs. La
+// ruleta no reutiliza nada del escritorio (esa sí que es DOM/CSS puro) pero
+// sigue las mismas dos listas como fuente de datos.
 // Envuelto en try/catch porque un fallo aquí (p.ej. un require que Metro
 // empaquetó pero que revienta al ejecutarse en el dispositivo) pasaba antes
 // desapercibido: ocurre al evaluar el módulo, antes de que exista ningún
@@ -47,14 +56,20 @@ import {
 // pantalla negra sin ninguna pista de qué falló.
 let openDatabase, migrate, gamesDb, settingsDb, groupGames, validateManualGame;
 let runSync, runXboxSync, runEpicSync, loginWithCode;
+let toPlayDb, playingNowDb, sessionsDb, achievementsDb, buildManualSession;
 let bootError = null;
 try {
   ({ openDatabase } = require('./db/connection'));
   ({ migrate } = require('./db/migrate'));
   gamesDb = require('../db/games');
   settingsDb = require('../db/settings');
+  toPlayDb = require('../db/to-play');
+  playingNowDb = require('../db/playing-now');
+  sessionsDb = require('../db/sessions');
+  achievementsDb = require('../db/achievements');
   ({ groupGames } = require('../core/group-games'));
   ({ validateManualGame } = require('../core/game'));
+  ({ buildManualSession } = require('../core/session'));
   ({ runSync } = require('../sync/run'));
   ({ runXboxSync } = require('../xbox/run'));
   ({ runEpicSync, loginWithCode } = require('../epic/run'));
@@ -156,6 +171,47 @@ function formatHours(minutes) {
   return `${(minutes / 60).toFixed(1)} h`;
 }
 
+// Igual que ui/common.js -> formatDate, pero sin depender de Intl/locale
+// (con Hermes no siempre está garantizado el paquete de datos de es-ES).
+function formatDate(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const PRECISION_LABELS = { exact: 'hora exacta', approximate: 'aproximada', derived: 'derivada de Steam' };
+
+function sessionSortKey(session) {
+  return session.endedAt || session.startedAt || session.createdAt;
+}
+
+function sessionLabel(session) {
+  if (session.startedAt && session.endedAt) {
+    return `${formatDate(session.startedAt)} → ${formatDate(session.endedAt)}`;
+  }
+  if (!session.startedAt && session.endedAt) {
+    return `hasta ${formatDate(session.endedAt)} (antes de empezar a sincronizar)`;
+  }
+  return `registrada el ${formatDate(session.createdAt)}`;
+}
+
+// Mismas dos listas que ui/app.js (TAB_FILTERS / ROULETTE_MODES): "Lista de
+// siguientes" y "Jugando ahora" son independientes de "Mis juegos".
+const TAB_FILTERS = {
+  toplay: (g) => g.inToPlay,
+  playing: (g) => g.inPlayingNow,
+};
+const TAB_EMPTY_MESSAGES = {
+  all: 'Todavía no hay juegos. Añade uno arriba o sincroniza con Steam.',
+  toplay: 'Tu lista está vacía. Marca juegos con ▶ desde «Mis juegos».',
+  playing: 'No estás jugando nada ahora mismo. Marca juegos con 🎮 desde «Mis juegos».',
+};
+const ROULETTE_MODES = {
+  toplay: { title: '¿A qué juego jugamos?', filter: (g) => g.inToPlay, resultPrefix: 'Te toca jugar a' },
+  playing: { title: '¿Con cuál seguimos hoy?', filter: (g) => g.inPlayingNow, resultPrefix: 'Hoy le toca a' },
+};
+
 // Botón junto a cada campo de credencial: abre en el navegador la página
 // exacta de donde se saca ese valor, para que rellenar Ajustes no dependa
 // de saber ya dónde buscar (mismo espíritu que `setup/open-url.js` en
@@ -165,6 +221,118 @@ function GetItButton({ label, url }) {
     <Pressable style={styles.getItButton} onPress={() => openHelpUrl(url)}>
       <Text style={styles.getItButtonText}>{label} ↗</Text>
     </Pressable>
+  );
+}
+
+// Equivalente móvil de la ruleta de ui/app.js: en vez de un disco SVG que
+// gira (habría que sumar react-native-svg solo para esto, en contra de "sin
+// dependencias innecesarias"), un marcador de nombres que va pasando cada
+// vez más despacio hasta pararse en el elegido — mismo efecto de suspense,
+// sin dependencias nuevas. El pulso de escala en cada nombre sustituye al
+// "tock" de audio del escritorio (Web Audio tampoco existe en RN sin sumar
+// expo-av).
+function RouletteModal({ visible, mode, games, onClose, onOpenGame }) {
+  const [spinning, setSpinning] = useState(false);
+  const [displayTitle, setDisplayTitle] = useState('');
+  const [result, setResult] = useState(null);
+  const pulse = useRef(new Animated.Value(1)).current;
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (!visible) {
+      clearTimeout(timerRef.current);
+      setSpinning(false);
+      setResult(null);
+      setDisplayTitle('');
+    }
+    return () => clearTimeout(timerRef.current);
+  }, [visible]);
+
+  function bump() {
+    pulse.setValue(0.92);
+    Animated.spring(pulse, { toValue: 1, useNativeDriver: true, friction: 4, tension: 120 }).start();
+  }
+
+  function spin() {
+    if (spinning || games.length === 0) return;
+    setSpinning(true);
+    setResult(null);
+
+    const finalIndex = Math.floor(Math.random() * games.length);
+    const laps = games.length * 2 + Math.floor(Math.random() * games.length) + 6;
+    let step = 0;
+
+    const tick = () => {
+      const idx = step % games.length;
+      setDisplayTitle(games[idx].title);
+      bump();
+      step += 1;
+      if (step >= laps) {
+        setSpinning(false);
+        setResult(games[finalIndex]);
+        return;
+      }
+      // se va frenando: empieza casi instantáneo y termina con pausas largas.
+      const progress = step / laps;
+      const delay = 45 + progress * progress * 300;
+      timerRef.current = setTimeout(tick, delay);
+    };
+    tick();
+  }
+
+  if (!mode) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalBox}>
+          <Pressable style={styles.modalCloseBtn} onPress={onClose}>
+            <Text style={styles.modalCloseBtnText}>×</Text>
+          </Pressable>
+          <Text style={styles.title}>{mode.title}</Text>
+
+          <View style={styles.wheelBox}>
+            {result ? (
+              <Text style={styles.wheelResult}>
+                {mode.resultPrefix} <Text style={styles.wheelResultName}>{result.title}</Text>
+              </Text>
+            ) : (
+              <Animated.Text
+                style={[styles.wheelSpinningName, { transform: [{ scale: pulse }] }]}
+                numberOfLines={2}
+              >
+                {displayTitle || (games.length ? 'Gira la ruleta…' : 'No hay juegos en esta lista.')}
+              </Animated.Text>
+            )}
+          </View>
+
+          <View style={styles.settingsButtons}>
+            <Pressable
+              style={[styles.addButton, (spinning || games.length === 0) && styles.buttonDisabled]}
+              onPress={spin}
+              disabled={spinning || games.length === 0}
+            >
+              {spinning ? (
+                <ActivityIndicator color={COLORS.bg} />
+              ) : (
+                <Text style={styles.addButtonText}>{result ? 'Girar otra vez' : 'Girar'}</Text>
+              )}
+            </Pressable>
+            {result && (
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => {
+                  onOpenGame(result.id);
+                  onClose();
+                }}
+              >
+                <Text style={styles.secondaryButtonText}>Abrir ficha →</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -188,6 +356,19 @@ export default function App() {
   const [xboxApiKey, setXboxApiKey] = useState('');
   const [epicCode, setEpicCode] = useState('');
   const [epicAccountId, setEpicAccountId] = useState(null);
+
+  // Fase 6: pestañas "Mis juegos" / "Lista de siguientes" / "Jugando ahora"
+  // (mismas listas que ui/app.js), ficha de cada juego (sesiones + logros) y
+  // ruleta. `selectedGameId` guarda con qué juego se abrió la ficha para
+  // poder recargar sus datos tras añadir una sesión.
+  const [currentTab, setCurrentTab] = useState('all');
+  const [selectedGameId, setSelectedGameId] = useState(null);
+  const [gameSessions, setGameSessions] = useState([]);
+  const [gameAchievements, setGameAchievements] = useState([]);
+  const [sessionHours, setSessionHours] = useState('');
+  const [sessionNote, setSessionNote] = useState('');
+  const [savingSession, setSavingSession] = useState(false);
+  const [rouletteOpen, setRouletteOpen] = useState(false);
 
   // Android hace hueco para el teclado (windowSoftInputMode="resize", el
   // valor por defecto de Expo) pero no desplaza el contenido hasta el campo
@@ -399,6 +580,215 @@ export default function App() {
     }
   }
 
+  // --- pestañas "Lista de siguientes" / "Jugando ahora" ---
+  // El estado de pertenencia se lee del propio `games` ya cargado (en vez de
+  // volver a consultar to_play_list/playing_now) porque es lo que ya está en
+  // pantalla y evita una vuelta extra a SQLite por cada toque.
+  function toggleToPlay(gameId) {
+    if (!db) return;
+    const game = games.find((g) => g.id === gameId);
+    try {
+      if (game?.inToPlay) toPlayDb.remove(db, gameId);
+      else toPlayDb.add(db, gameId);
+      reload(db);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function togglePlayingNow(gameId) {
+    if (!db) return;
+    const game = games.find((g) => g.id === gameId);
+    try {
+      if (game?.inPlayingNow) playingNowDb.remove(db, gameId);
+      else playingNowDb.add(db, gameId);
+      reload(db);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function removeFromTab(gameId) {
+    if (!db) return;
+    try {
+      if (currentTab === 'toplay') toPlayDb.remove(db, gameId);
+      else if (currentTab === 'playing') playingNowDb.remove(db, gameId);
+      reload(db);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  // --- ficha de un juego: sesiones + logros ---
+  function loadGameDetail(gameId) {
+    if (!db) return;
+    try {
+      setGameSessions(sessionsDb.listSessionsForGame(db, gameId));
+      setGameAchievements(achievementsDb.listAchievementsForGame(db, gameId));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function openGame(gameId) {
+    setSelectedGameId(gameId);
+    setSessionHours('');
+    setSessionNote('');
+    loadGameDetail(gameId);
+    setView('game');
+  }
+
+  function closeGame() {
+    setView('library');
+    setSelectedGameId(null);
+    setGameSessions([]);
+    setGameAchievements([]);
+  }
+
+  async function onAddSession() {
+    if (!db || !selectedGameId || savingSession) return;
+    setSavingSession(true);
+    setError(null);
+    try {
+      const hours = Number(sessionHours.replace(',', '.'));
+      if (!Number.isFinite(hours) || hours <= 0) throw new Error('Indica cuántas horas has jugado.');
+      const draft = buildManualSession({ minutes: Math.round(hours * 60), note: sessionNote });
+      sessionsDb.insertSession(db, selectedGameId, draft);
+      setSessionHours('');
+      setSessionNote('');
+      loadGameDetail(selectedGameId);
+      reload(db);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingSession(false);
+    }
+  }
+
+  const selectedGame = selectedGameId ? games.find((g) => g.id === selectedGameId) || null : null;
+  const activeRouletteMode = ROULETTE_MODES[currentTab] || null;
+  const rouletteGames = activeRouletteMode ? games.filter(activeRouletteMode.filter) : [];
+
+  if (view === 'game') {
+    if (!selectedGame) {
+      return (
+        <View style={[styles.container, { paddingTop: 56 }]}>
+          <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+          <Pressable onPress={closeGame}>
+            <Text style={styles.backLink}>← Volver</Text>
+          </Pressable>
+          <Text style={styles.empty}>Este juego ya no está en tu biblioteca.</Text>
+        </View>
+      );
+    }
+
+    const sortedSessions = [...gameSessions].sort((a, b) =>
+      (sessionSortKey(b) || '').localeCompare(sessionSortKey(a) || '')
+    );
+
+    return (
+      <KeyboardAvoidingView style={styles.flexBg} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+        <ScrollView contentContainerStyle={styles.settingsContent} keyboardShouldPersistTaps="handled">
+          <Pressable onPress={closeGame}>
+            <Text style={styles.backLink}>← Volver a la biblioteca</Text>
+          </Pressable>
+
+          <View style={styles.gameHeaderRow}>
+            {selectedGame.iconUrl ? (
+              <Image source={{ uri: selectedGame.iconUrl }} style={styles.gameHeaderIcon} />
+            ) : (
+              <View style={[styles.gameHeaderIcon, styles.cardIconPlaceholder]} />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>{selectedGame.title}</Text>
+              <Text style={styles.cardPlatform}>{selectedGame.platforms.join(' · ')}</Text>
+              {selectedGame.missingSince && <Text style={styles.error}>ya no está en Steam</Text>}
+            </View>
+          </View>
+
+          <View style={styles.statsRow}>
+            <Text style={styles.statBig}>{formatHours(selectedGame.totalMinutes)} jugadas en total</Text>
+            {selectedGame.achievementsTotal > 0 && (
+              <Text style={styles.statBig}>
+                🏆 {selectedGame.achievementsUnlocked}/{selectedGame.achievementsTotal} logros
+              </Text>
+            )}
+            {selectedGame.igdbMainMinutes ? (
+              <Text style={styles.statBig}>▶ {formatHours(selectedGame.igdbMainMinutes)} historia principal</Text>
+            ) : null}
+          </View>
+
+          <Text style={styles.sectionLabel}>Registrar sesión</Text>
+          <View style={styles.addRow}>
+            <TextInput
+              style={[styles.input, { flex: 0, width: 90 }]}
+              placeholder="Horas"
+              placeholderTextColor={COLORS.textMuted}
+              value={sessionHours}
+              onChangeText={setSessionHours}
+              keyboardType="decimal-pad"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Nota (opcional)"
+              placeholderTextColor={COLORS.textMuted}
+              value={sessionNote}
+              onChangeText={setSessionNote}
+            />
+            <Pressable style={styles.addButton} onPress={onAddSession} disabled={savingSession}>
+              {savingSession ? (
+                <ActivityIndicator color={COLORS.bg} />
+              ) : (
+                <Text style={styles.addButtonText}>Añadir</Text>
+              )}
+            </Pressable>
+          </View>
+
+          <Text style={styles.sectionLabel}>Sesiones</Text>
+          {sortedSessions.length === 0 ? (
+            <Text style={styles.empty}>Todavía no hay sesiones registradas.</Text>
+          ) : (
+            sortedSessions.map((session) => (
+              <View key={session.id} style={styles.sessionRow}>
+                <Text style={styles.sessionMinutes}>{formatHours(session.minutes)}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sessionWhen}>{sessionLabel(session)}</Text>
+                  <Text style={styles.sessionMeta}>
+                    {PRECISION_LABELS[session.precision] || session.precision}
+                    {session.note ? ` · ${session.note}` : ''}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
+
+          <Text style={styles.sectionLabel}>Logros</Text>
+          {gameAchievements.length === 0 ? (
+            <Text style={styles.empty}>Este juego no tiene logros en Steam (o todavía no se han sincronizado).</Text>
+          ) : (
+            gameAchievements.map((achievement) => (
+              <View key={achievement.id} style={styles.achievementRow}>
+                <Text style={styles.achievementIcon}>{achievement.achieved ? '🏆' : '🔒'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.achievementName, !achievement.achieved && styles.textMuted]}>
+                    {achievement.name || achievement.apiName}
+                  </Text>
+                  {achievement.description ? (
+                    <Text style={styles.achievementDesc}>{achievement.description}</Text>
+                  ) : null}
+                </View>
+                {achievement.achieved && (
+                  <Text style={styles.achievementDate}>{formatDate(achievement.unlockedAt)}</Text>
+                )}
+              </View>
+            ))
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
   if (view === 'settings') {
     const firstRun = !apiKey || !steamId;
     return (
@@ -568,7 +958,7 @@ export default function App() {
         style={styles.flexBg}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
-        data={db ? games : []}
+        data={db ? games.filter(TAB_FILTERS[currentTab] || (() => true)) : []}
         keyExtractor={(g) => String(g.id)}
         ListHeaderComponent={
           <View>
@@ -583,6 +973,34 @@ export default function App() {
             </View>
 
             {error && <Text style={styles.error}>{error}</Text>}
+
+            <View style={styles.tabsRow}>
+              {[
+                { id: 'all', label: 'Mis juegos' },
+                { id: 'toplay', label: `Siguientes (${games.filter((g) => g.inToPlay).length})` },
+                { id: 'playing', label: `Jugando (${games.filter((g) => g.inPlayingNow).length})` },
+              ].map((tab) => (
+                <Pressable
+                  key={tab.id}
+                  style={[styles.tabButton, currentTab === tab.id && styles.tabButtonActive]}
+                  onPress={() => setCurrentTab(tab.id)}
+                >
+                  <Text style={[styles.tabButtonText, currentTab === tab.id && styles.tabButtonTextActive]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {activeRouletteMode && (
+              <Pressable
+                style={[styles.rouletteButton, rouletteGames.length === 0 && styles.buttonDisabled]}
+                onPress={() => rouletteGames.length > 0 && setRouletteOpen(true)}
+                disabled={rouletteGames.length === 0}
+              >
+                <Text style={styles.addButtonText}>◉ Ruleta</Text>
+              </Pressable>
+            )}
 
             <Pressable style={styles.syncButton} onPress={onSync} disabled={syncing}>
               {syncing ? (
@@ -630,11 +1048,11 @@ export default function App() {
           !db ? (
             <ActivityIndicator color={COLORS.accent} style={{ marginTop: 24 }} />
           ) : (
-            <Text style={styles.empty}>Todavía no hay juegos. Añade uno arriba o sincroniza con Steam.</Text>
+            <Text style={styles.empty}>{TAB_EMPTY_MESSAGES[currentTab]}</Text>
           )
         }
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <Pressable style={styles.card} onPress={() => openGame(item.id)}>
             {item.iconUrl ? (
               <Image source={{ uri: item.iconUrl }} style={styles.cardIcon} />
             ) : (
@@ -643,15 +1061,62 @@ export default function App() {
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardPlatform}>{item.platforms.join(' · ')}</Text>
-              {item.achievementsTotal > 0 && (
-                <Text style={styles.cardAchievements}>
-                  🏆 {item.achievementsUnlocked}/{item.achievementsTotal}
-                </Text>
+              <View style={styles.cardFlags}>
+                {item.achievementsTotal > 0 && (
+                  <Text style={styles.cardAchievements}>
+                    🏆 {item.achievementsUnlocked}/{item.achievementsTotal}
+                  </Text>
+                )}
+                {item.inToPlay && currentTab !== 'toplay' && <Text style={styles.cardFlag}>▶ siguiente</Text>}
+                {item.inPlayingNow && currentTab !== 'playing' && (
+                  <Text style={styles.cardFlag}>🎮 jugando</Text>
+                )}
+              </View>
+            </View>
+            <View style={styles.cardRight}>
+              <Text style={styles.cardHours}>{formatHours(item.totalMinutes)}</Text>
+              {currentTab === 'all' ? (
+                <View style={styles.cardActions}>
+                  <Pressable
+                    style={[styles.cardActionBtn, item.inToPlay && styles.cardActionBtnActive]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      toggleToPlay(item.id);
+                    }}
+                  >
+                    <Text style={styles.cardActionBtnText}>▶</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.cardActionBtn, item.inPlayingNow && styles.cardActionBtnActive]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      togglePlayingNow(item.id);
+                    }}
+                  >
+                    <Text style={styles.cardActionBtnText}>🎮</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  style={styles.cardActionBtn}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    removeFromTab(item.id);
+                  }}
+                >
+                  <Text style={styles.cardActionBtnText}>×</Text>
+                </Pressable>
               )}
             </View>
-            <Text style={styles.cardHours}>{formatHours(item.totalMinutes)}</Text>
-          </View>
+          </Pressable>
         )}
+      />
+      <RouletteModal
+        visible={rouletteOpen}
+        mode={activeRouletteMode}
+        games={rouletteGames}
+        onClose={() => setRouletteOpen(false)}
+        onOpenGame={openGame}
       />
     </KeyboardAvoidingView>
   );
@@ -864,6 +1329,144 @@ const styles = StyleSheet.create({
   cardIconPlaceholder: { backgroundColor: COLORS.stroke },
   cardTitle: { color: COLORS.text, fontSize: 16, fontWeight: '600' },
   cardPlatform: { color: COLORS.accent2, fontSize: 12, marginTop: 3 },
+  cardFlags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cardAchievements: { color: COLORS.textMuted, fontSize: 12, marginTop: 3 },
+  cardFlag: { color: COLORS.textMuted, fontSize: 12, marginTop: 3 },
+  cardRight: { alignItems: 'flex-end', gap: 8 },
   cardHours: { color: COLORS.accent, fontWeight: '700' },
+  cardActions: { flexDirection: 'row', gap: 6 },
+  cardActionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: COLORS.glass,
+    borderWidth: 1,
+    borderColor: COLORS.stroke,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardActionBtnActive: {
+    backgroundColor: COLORS.accent2,
+    borderColor: COLORS.accent2,
+  },
+  cardActionBtnText: { fontSize: 13 },
+
+  // --- pestañas "Mis juegos" / "Lista de siguientes" / "Jugando ahora" ---
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  tabButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    backgroundColor: COLORS.glass,
+    borderWidth: 1,
+    borderColor: COLORS.stroke,
+  },
+  tabButtonActive: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  tabButtonText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700' },
+  tabButtonTextActive: { color: COLORS.bg },
+  rouletteButton: {
+    backgroundColor: COLORS.glass,
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  buttonDisabled: { opacity: 0.4 },
+
+  // --- ficha de un juego ---
+  backLink: { color: COLORS.accent, fontWeight: '700', marginBottom: 18 },
+  gameHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 8 },
+  gameHeaderIcon: { width: 64, height: 64, borderRadius: 12 },
+  statsRow: { gap: 4, marginBottom: 8 },
+  statBig: { color: COLORS.text, fontSize: 14 },
+  sessionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    backgroundColor: COLORS.glass,
+    borderWidth: 1,
+    borderColor: COLORS.stroke,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  sessionMinutes: { color: COLORS.accent, fontWeight: '700', width: 56 },
+  sessionWhen: { color: COLORS.text, fontSize: 13 },
+  sessionMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+  achievementRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    backgroundColor: COLORS.glass,
+    borderWidth: 1,
+    borderColor: COLORS.stroke,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+  },
+  achievementIcon: { fontSize: 20 },
+  achievementName: { color: COLORS.text, fontWeight: '600' },
+  achievementDesc: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+  achievementDate: { color: COLORS.textMuted, fontSize: 11 },
+  textMuted: { color: COLORS.textMuted },
+
+  // --- ruleta ---
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalBox: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: COLORS.bg,
+    borderWidth: 1,
+    borderColor: COLORS.stroke,
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.glass,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  modalCloseBtnText: { color: COLORS.text, fontSize: 18, lineHeight: 20 },
+  wheelBox: {
+    minHeight: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.glass,
+    borderWidth: 1,
+    borderColor: COLORS.stroke,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginVertical: 16,
+  },
+  wheelSpinningName: {
+    color: COLORS.accent,
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  wheelResult: { color: COLORS.text, fontSize: 16, textAlign: 'center' },
+  wheelResultName: { color: COLORS.accent, fontWeight: '700' },
 });

@@ -84,6 +84,7 @@ function mergeGroup(rows) {
     igdbUpdatedAt: igdbRow ? igdbRow.igdbUpdatedAt : firstDefined(rows, 'igdbUpdatedAt'),
     missingSince: firstDefined(rows, 'missingSince'),
     inToPlay: rows.some((r) => r.inToPlay),
+    inPlayingNow: rows.some((r) => r.inPlayingNow),
     archived: rows.every((r) => r.archived),
     createdAt: rows.reduce(
       (min, r) => (r.createdAt && (!min || r.createdAt < min) ? r.createdAt : min),
