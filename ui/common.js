@@ -157,34 +157,114 @@ async function submitJson(url, method, body) {
   return res.json();
 }
 
-// --- temas de la app: paleta + fondo personal ---
-// Los valores de "preview" son solo para pintar la muestra del selector;
-// los colores reales viven en las variables CSS de cada tema (styles.css).
-const THEMES = [
-  { id: 'dark', name: 'Glass oscuro', preview: 'linear-gradient(135deg, #0a0e1a, #7cc4ff, #a996ff)' },
-  { id: 'midnight', name: 'Medianoche', preview: 'linear-gradient(135deg, #05070d, #5ad1ff, #4f8dff)' },
-  { id: 'aurora', name: 'Aurora', preview: 'linear-gradient(135deg, #06120f, #4be3b0, #38bdf8)' },
-  { id: 'amber', name: 'Ámbar', preview: 'linear-gradient(135deg, #170d08, #ffb454, #ff7a59)' },
-  { id: 'light', name: 'Claro', preview: 'linear-gradient(135deg, #f3f5fb, #2f7dd1, #7c5cff)' },
-  { id: 'tavern', name: 'Taberna', preview: 'linear-gradient(135deg, #1b1108, #e0a458, #c1440e)' },
-  { id: 'space', name: 'Espacio', preview: 'linear-gradient(135deg, #050611, #7cf9ff, #b06bff)' },
-];
-const THEME_KEY = 'sdb-theme';
+// --- estilo visual de la app + fondo personal ---
+// Cada estilo trae su propia paleta de fábrica además de la superficie
+// (ver "estilos visuales" en styles.css) — no hay selector de color suelto
+// aparte de "personalización" más abajo: mezclar paletas ajenas con un
+// estilo (p. ej. los acentos pastel de otro estilo metidos en un
+// neobrutalismo) deja de leerse como lo que es, así que cada estilo ya
+// trae el color que mejor le sienta. Lo que SÍ es independiente del
+// estilo es el modo claro/oscuro: los cinco estilos definen ambas
+// variantes (ver bloques [data-mode] en styles.css).
 const BG_IMAGE_KEY = 'sdb-bg-image';
 
-function getStoredTheme() {
+const STYLES = [
+  { id: 'glass', name: 'Cristal (Glass)' },
+  { id: 'neu', name: 'Neumorphism' },
+  { id: 'brutal', name: 'Neobrutalism' },
+  { id: 'flat', name: 'Flat Design' },
+  { id: 'minimal', name: 'Minimalismo' },
+];
+const STYLE_KEY = 'sdb-style';
+
+function getStoredStyle() {
   try {
-    return localStorage.getItem(THEME_KEY) || 'dark';
+    return localStorage.getItem(STYLE_KEY) || 'glass';
+  } catch {
+    return 'glass';
+  }
+}
+
+function setStyle(id) {
+  document.documentElement.dataset.style = id;
+  try {
+    localStorage.setItem(STYLE_KEY, id);
+  } catch {}
+}
+
+const MODE_KEY = 'sdb-mode';
+
+function getStoredMode() {
+  try {
+    return localStorage.getItem(MODE_KEY) || 'dark';
   } catch {
     return 'dark';
   }
 }
 
-function setTheme(id) {
-  document.documentElement.dataset.theme = id;
+function setMode(id) {
+  document.documentElement.dataset.mode = id;
   try {
-    localStorage.setItem(THEME_KEY, id);
+    localStorage.setItem(MODE_KEY, id);
   } catch {}
+}
+
+// --- personalización: fuente, fondo, título y acento, por encima del
+// estilo elegido. Se guardan aparte (sdb-custom) y se reaplican en cada
+// página; "Restablecer" simplemente borra la clave y vuelve al valor de
+// fábrica del estilo activo. El valor de `font` es directamente la pila de
+// tipografías (no un id) para no duplicar el catálogo en el script
+// anti-parpadeo de cada página.
+const FONTS = [
+  { name: 'Por defecto', stack: "'Segoe UI Variable', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif" },
+  { name: 'Clásica (serif)', stack: "Georgia, 'Times New Roman', Times, serif" },
+  { name: 'Monoespaciada', stack: "Consolas, 'Cascadia Code', 'Courier New', monospace" },
+  { name: 'Redondeada', stack: "Verdana, 'Trebuchet MS', 'Segoe UI', sans-serif" },
+  { name: 'Elegante', stack: "'Palatino Linotype', 'Book Antiqua', Palatino, serif" },
+];
+const CUSTOM_KEY = 'sdb-custom';
+
+function getStoredCustom() {
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function applyCustom(custom) {
+  const root = document.documentElement.style;
+  if (custom.font) root.setProperty('--font', custom.font);
+  else root.removeProperty('--font');
+  if (custom.bg) root.setProperty('--bg', custom.bg);
+  else root.removeProperty('--bg');
+  if (custom.accent) root.setProperty('--accent', custom.accent);
+  else root.removeProperty('--accent');
+  if (custom.titleFrom && custom.titleTo) {
+    root.setProperty('--h1-grad', `linear-gradient(120deg, ${custom.titleFrom}, ${custom.titleTo})`);
+  } else {
+    root.removeProperty('--h1-grad');
+  }
+}
+
+function saveCustom(custom) {
+  try {
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom));
+  } catch {}
+  applyCustom(custom);
+}
+
+function clearCustom() {
+  try {
+    localStorage.removeItem(CUSTOM_KEY);
+  } catch {}
+  applyCustom({});
+}
+
+// Saca los códigos hex de un valor CSS (p. ej. --h1-grad), para precargar
+// los selectores de color con los dos tonos que ya está usando el estilo.
+function extractHexColors(value) {
+  return (value.match(/#[0-9a-fA-F]{3,8}/g) || []);
 }
 
 function getStoredBgImage() {

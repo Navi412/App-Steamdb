@@ -533,7 +533,14 @@ document.addEventListener('keydown', (event) => {
 // --- ajustes: plataformas conectadas + tema de la interfaz ---
 const settingsModal = document.getElementById('settings-modal');
 const settingsPlatformList = document.getElementById('settings-platform-list');
-const themeSwatchesEl = document.getElementById('theme-swatches');
+const styleSwatchesEl = document.getElementById('style-swatches');
+const modeToggleEl = document.getElementById('mode-toggle');
+const customFontEl = document.getElementById('custom-font');
+const customBgEl = document.getElementById('custom-bg');
+const customAccentEl = document.getElementById('custom-accent');
+const customTitleFromEl = document.getElementById('custom-title-from');
+const customTitleToEl = document.getElementById('custom-title-to');
+const customResetBtn = document.getElementById('custom-reset');
 const themeBgFile = document.getElementById('theme-bg-file');
 const themeBgRemove = document.getElementById('theme-bg-remove');
 const themeBgName = document.getElementById('theme-bg-name');
@@ -574,16 +581,52 @@ async function renderSettingsPlatforms() {
   }
 }
 
-function renderThemeSwatches() {
-  const current = getStoredTheme();
-  themeSwatchesEl.innerHTML = THEMES.map(
-    (t) => `
-      <button type="button" class="theme-swatch${t.id === current ? ' is-active' : ''}" data-theme-id="${t.id}">
+function renderStyleSwatches() {
+  const current = getStoredStyle();
+  styleSwatchesEl.innerHTML = STYLES.map(
+    (s) => `
+      <button type="button" class="theme-swatch${s.id === current ? ' is-active' : ''}" data-style-id="${s.id}">
         <span class="theme-swatch-check" aria-hidden="true">✓</span>
-        <span class="theme-swatch-preview" style="background:${t.preview}"></span>
-        <span class="theme-swatch-name">${escapeHtml(t.name)}</span>
+        <span class="theme-swatch-preview style-swatch-preview style-preview-${s.id}"></span>
+        <span class="theme-swatch-name">${escapeHtml(s.name)}</span>
       </button>`
   ).join('');
+}
+
+function renderModeToggle() {
+  const current = getStoredMode();
+  modeToggleEl.querySelectorAll('.tab').forEach((btn) => {
+    btn.classList.toggle('is-active', btn.dataset.modeId === current);
+  });
+}
+
+// Las opciones de fuente no cambian, así que se pintan solo la primera vez.
+let customFontOptionsRendered = false;
+function renderCustomFontOptions() {
+  if (customFontOptionsRendered) return;
+  customFontEl.innerHTML = FONTS.map(
+    (f) => `<option value="${escapeHtml(f.stack)}">${escapeHtml(f.name)}</option>`
+  ).join('');
+  customFontOptionsRendered = true;
+}
+
+// Precarga los controles con la personalización guardada, o si no hay
+// ninguna, con lo que el estilo activo esté usando ahora mismo (así el
+// selector de color nunca arranca en negro sin venir a cuento).
+function refreshCustomControls() {
+  renderCustomFontOptions();
+  const custom = getStoredCustom();
+  const cs = getComputedStyle(document.documentElement);
+  customFontEl.value = custom.font || FONTS[0].stack;
+  customBgEl.value = custom.bg || cs.getPropertyValue('--bg').trim() || '#000000';
+  customAccentEl.value = custom.accent || cs.getPropertyValue('--accent').trim() || '#000000';
+  const titleColors = extractHexColors(cs.getPropertyValue('--h1-grad'));
+  customTitleFromEl.value = custom.titleFrom || titleColors[0] || '#000000';
+  customTitleToEl.value = custom.titleTo || titleColors[titleColors.length - 1] || '#000000';
+}
+
+function commitCustom(partial) {
+  saveCustom({ ...getStoredCustom(), ...partial });
 }
 
 function refreshThemeBgControls() {
@@ -594,7 +637,9 @@ function refreshThemeBgControls() {
 
 function openSettingsModal() {
   renderSettingsPlatforms();
-  renderThemeSwatches();
+  renderStyleSwatches();
+  renderModeToggle();
+  refreshCustomControls();
   refreshThemeBgControls();
   settingsModal.hidden = false;
 }
@@ -612,11 +657,34 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !settingsModal.hidden) closeSettingsModal();
 });
 
-themeSwatchesEl.addEventListener('click', (event) => {
+styleSwatchesEl.addEventListener('click', (event) => {
   const btn = event.target.closest('.theme-swatch');
   if (!btn) return;
-  setTheme(btn.dataset.themeId);
-  renderThemeSwatches();
+  setStyle(btn.dataset.styleId);
+  renderStyleSwatches();
+  refreshCustomControls();
+});
+
+modeToggleEl.addEventListener('click', (event) => {
+  const btn = event.target.closest('.tab');
+  if (!btn) return;
+  setMode(btn.dataset.modeId);
+  renderModeToggle();
+  refreshCustomControls();
+});
+
+customFontEl.addEventListener('change', () => commitCustom({ font: customFontEl.value }));
+customBgEl.addEventListener('input', () => commitCustom({ bg: customBgEl.value }));
+customAccentEl.addEventListener('input', () => commitCustom({ accent: customAccentEl.value }));
+customTitleFromEl.addEventListener('input', () =>
+  commitCustom({ titleFrom: customTitleFromEl.value, titleTo: customTitleToEl.value })
+);
+customTitleToEl.addEventListener('input', () =>
+  commitCustom({ titleFrom: customTitleFromEl.value, titleTo: customTitleToEl.value })
+);
+customResetBtn.addEventListener('click', () => {
+  clearCustom();
+  refreshCustomControls();
 });
 
 themeBgFile.addEventListener('change', async () => {

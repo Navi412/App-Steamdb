@@ -7,16 +7,29 @@
 <link rel="icon" href="/favicon.ico">
 <link rel="stylesheet" href="/styles.css">
 <script>
-  // Aplica el tema guardado antes del primer pintado, para evitar el
-  // parpadeo del tema por defecto seguido de un salto al elegido.
+  // Aplica estilo, modo y personalización guardados antes del primer
+  // pintado, para evitar el parpadeo del look por defecto seguido de un
+  // salto al elegido.
   (function () {
     try {
-      var theme = localStorage.getItem('sdb-theme');
-      if (theme) document.documentElement.dataset.theme = theme;
+      var style = localStorage.getItem('sdb-style');
+      if (style) document.documentElement.dataset.style = style;
+      document.documentElement.dataset.mode = localStorage.getItem('sdb-mode') || 'dark';
       var bg = localStorage.getItem('sdb-bg-image');
       if (bg) {
         document.documentElement.style.setProperty('--bg-image', 'url(' + JSON.stringify(bg) + ')');
         document.documentElement.classList.add('has-bg-image');
+      }
+      var customRaw = localStorage.getItem('sdb-custom');
+      if (customRaw) {
+        var custom = JSON.parse(customRaw);
+        var root = document.documentElement.style;
+        if (custom.font) root.setProperty('--font', custom.font);
+        if (custom.bg) root.setProperty('--bg', custom.bg);
+        if (custom.accent) root.setProperty('--accent', custom.accent);
+        if (custom.titleFrom && custom.titleTo) {
+          root.setProperty('--h1-grad', 'linear-gradient(120deg, ' + custom.titleFrom + ', ' + custom.titleTo + ')');
+        }
       }
     } catch {}
   })();

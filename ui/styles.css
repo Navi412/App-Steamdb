@@ -40,73 +40,406 @@
   --radius: 16px;
   --radius-sm: 11px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* --- variables de "estilo visual" ---
+     Estos valores son los de "glass" (cristal, el look de siempre): la capa
+     de estilo por defecto en :root, de ahí que no tenga bloque propio. Los
+     otros 4 estilos (ver "--- estilos visuales ---" más abajo) reasignan
+     este mismo puñado de variables; los componentes de más abajo en la
+     hoja ya están construidos sobre ellas, así que cambiar de estilo no
+     toca ninguna otra regla. */
+  --surf-bg: var(--glass);
+  --surf-bg-hover: var(--glass-hover);
+  --surf-blur: blur(18px) saturate(150%);
+  --surf-border: 1px solid var(--stroke);
+  --surf-border-hover: var(--stroke-strong);
+  --surf-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --surf-radius: var(--radius);
+
+  --ctl-bg: var(--glass-strong);
+  --ctl-blur: blur(10px);
+  --ctl-border: 1px solid var(--stroke-strong);
+  --ctl-radius: var(--radius-sm);
+  --ctl-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --ctl-shadow-hover: var(--shadow-lift), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --ctl-hover-bg: linear-gradient(180deg, rgba(124, 196, 255, 0.22), rgba(169, 150, 255, 0.14));
+  --ctl-hover-border: rgba(124, 196, 255, 0.5);
+  --ctl-hover-transform: translateY(-2px);
+  --ctl-active-transform: translateY(0);
+
+  --field-bg: rgba(0, 0, 0, 0.22);
+  --field-bg-focus: rgba(0, 0, 0, 0.3);
+  --field-border: 1px solid var(--stroke);
+  --field-shadow: none;
+  --field-focus-shadow: 0 0 0 3px rgba(124, 196, 255, 0.18);
+
+  --pill-bg: rgba(255, 255, 255, 0.04);
+  --pill-border: 1px solid var(--stroke);
+  --pill-shadow: none;
 }
 
-/* --- temas de la app ---
-   "dark" (Glass oscuro) son los valores por defecto de :root, de ahí que no
-   tenga bloque propio. Cambiar de tema solo reasigna estas variables; el
-   resto de la hoja de estilos ya está construida sobre ellas. */
-html[data-theme='midnight'] {
-  --bg: #05070d;
-  --glass: rgba(180, 210, 255, 0.05);
-  --glass-strong: rgba(180, 210, 255, 0.085);
-  --glass-hover: rgba(180, 210, 255, 0.11);
-  --stroke: rgba(180, 210, 255, 0.12);
-  --stroke-strong: rgba(180, 210, 255, 0.22);
-  --text: #dbe6f5;
-  --text-muted: #7c8aa3;
-  --accent: #5ad1ff;
+/* ═══════════════════ estilos visuales ═══════════════════════════════════
+   La app ya no tiene un selector de paleta aparte: cada estilo trae de
+   fábrica la combinación de colores que mejor le sienta (algunos quedan
+   fatal con colores ajenos, p. ej. un neumorphism con grises equivocados
+   deja de leerse, o un neobrutalismo pastel deja de ser brutalista) — así
+   que cada bloque de estilo reasigna los tokens de superficie (--surf-,
+   --ctl-, --field-, --pill-, derivados de --bg vía color-mix() para que se
+   adapten solos a cualquier tono). Esos tokens de superficie NO cambian
+   entre claro y oscuro; lo que cambia es solo el color (--bg, --text,
+   --accent...), en un bloque aparte seleccionado por [data-mode]. "glass"
+   oscuro es el valor por defecto de :root; su variante clara vive más
+   abajo en su propio bloque [data-mode='light']. */
+
+/* Neumorphism: gris azulado muy claro (o gris pizarra oscuro en modo
+   oscuro) — un tono a medio camino es necesario para que la sombra clara y
+   la oscura del truco de luz se noten las dos. Acento en azul-violeta
+   suave, nada saturado, para no romper la lectura "todo es del mismo
+   material". Sin bordes, sin blur, sin transparencia — la superficie se
+   resuelve con color-mix() sobre --bg, así que este bloque de forma vale
+   para los dos modos sin tocarlo. */
+html[data-style='neu'] {
+  --surf-bg: color-mix(in srgb, var(--bg) 96%, white 4%);
+  --surf-bg-hover: var(--surf-bg);
+  --surf-blur: none;
+  --surf-border: none;
+  --surf-border-hover: transparent;
+  --surf-shadow: 9px 9px 18px color-mix(in srgb, var(--bg) 40%, black 60%),
+    -9px -9px 18px color-mix(in srgb, var(--bg) 78%, white 22%);
+  --surf-radius: 22px;
+
+  --ctl-bg: color-mix(in srgb, var(--bg) 96%, white 4%);
+  --ctl-blur: none;
+  --ctl-border: none;
+  --ctl-radius: 14px;
+  --ctl-shadow: 5px 5px 10px color-mix(in srgb, var(--bg) 40%, black 60%),
+    -5px -5px 10px color-mix(in srgb, var(--bg) 78%, white 22%);
+  --ctl-shadow-hover: 6px 6px 13px color-mix(in srgb, var(--bg) 38%, black 62%),
+    -6px -6px 13px color-mix(in srgb, var(--bg) 80%, white 20%);
+  --ctl-hover-bg: var(--ctl-bg);
+  --ctl-hover-border: transparent;
+  --ctl-hover-transform: none;
+  --ctl-active-transform: none;
+
+  --field-bg: var(--surf-bg);
+  --field-bg-focus: var(--surf-bg);
+  --field-border: none;
+  --field-shadow: inset 4px 4px 8px color-mix(in srgb, var(--bg) 40%, black 60%),
+    inset -4px -4px 8px color-mix(in srgb, var(--bg) 78%, white 22%);
+  --field-focus-shadow: inset 4px 4px 8px color-mix(in srgb, var(--bg) 35%, black 65%),
+    inset -4px -4px 8px color-mix(in srgb, var(--bg) 82%, white 18%), 0 0 0 2px var(--accent);
+
+  --pill-bg: var(--surf-bg);
+  --pill-border: none;
+  --pill-shadow: 3px 3px 6px color-mix(in srgb, var(--bg) 42%, black 58%),
+    -3px -3px 6px color-mix(in srgb, var(--bg) 80%, white 20%);
+}
+/* Botón pulsado: la sombra se invierte hacia dentro, como si el dedo lo
+   hundiera en la superficie. */
+html[data-style='neu'] button:active:not(:disabled),
+html[data-style='neu'] .file-btn:active,
+html[data-style='neu'] .theme-swatch:active:not(:disabled) {
+  box-shadow: inset 4px 4px 8px color-mix(in srgb, var(--bg) 40%, black 60%),
+    inset -4px -4px 8px color-mix(in srgb, var(--bg) 78%, white 22%);
+}
+html[data-style='neu'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #e5e9f2;
+  --glass: rgba(255, 255, 255, 0.5);
+  --glass-strong: rgba(255, 255, 255, 0.65);
+  --glass-hover: rgba(255, 255, 255, 0.8);
+  --stroke: rgba(45, 55, 75, 0.1);
+  --stroke-strong: rgba(45, 55, 75, 0.18);
+  --shadow: 8px 8px 16px rgba(163, 177, 198, 0.6), -8px -8px 16px rgba(255, 255, 255, 0.85);
+  --shadow-lift: 10px 10px 20px rgba(163, 177, 198, 0.65), -10px -10px 20px rgba(255, 255, 255, 0.9);
+  --text: #2e3446;
+  --text-muted: #767f92;
+  --accent: #5b6eea;
+  --accent-2: #8a6ee0;
+  --gold: #d1972f;
+  --danger: #e0596f;
+  --ok: #3fae82;
+  --glow-1: rgba(0, 0, 0, 0);
+  --glow-2: rgba(0, 0, 0, 0);
+  --glow-3: rgba(0, 0, 0, 0);
+  --h1-grad: linear-gradient(120deg, #2e3446, #5b6eea 60%, #8a6ee0);
+}
+html[data-style='neu'][data-mode='dark'] {
+  color-scheme: dark;
+  --bg: #1e2230;
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-strong: rgba(255, 255, 255, 0.1);
+  --glass-hover: rgba(255, 255, 255, 0.14);
+  --stroke: rgba(255, 255, 255, 0.08);
+  --stroke-strong: rgba(255, 255, 255, 0.16);
+  --shadow: 8px 8px 16px rgba(0, 0, 0, 0.55), -8px -8px 16px rgba(255, 255, 255, 0.045);
+  --shadow-lift: 10px 10px 20px rgba(0, 0, 0, 0.6), -10px -10px 20px rgba(255, 255, 255, 0.06);
+  --text: #eef0f6;
+  --text-muted: #9aa1b4;
+  --accent: #7c8cf0;
+  --accent-2: #a78bfa;
+  --gold: #f0b429;
+  --danger: #f0677e;
+  --ok: #52c793;
+  --glow-1: rgba(0, 0, 0, 0);
+  --glow-2: rgba(0, 0, 0, 0);
+  --glow-3: rgba(0, 0, 0, 0);
+  --h1-grad: linear-gradient(120deg, #eef0f6, #7c8cf0 60%, #a78bfa);
+}
+
+/* Neobrutalism: crudo de fábrica — papel crudo y bordes/tinta negros con un
+   azul eléctrico y un coral como únicos acentos, el contraste duro que pide
+   el estilo (un fondo oscuro o unos acentos pastel lo dejarían en "tarjeta
+   con borde" en vez de brutalista). Bloques planos, borde grueso sólido y
+   sombra dura sin difuminar, desplazada — nada de degradados ni blur. Al
+   pasar el ratón la caja "se levanta" hacia la sombra; al pulsar, se hunde
+   encima de ella. */
+html[data-style='brutal'] {
+  --surf-bg: color-mix(in srgb, var(--bg) 90%, white 10%);
+  --surf-bg-hover: var(--surf-bg);
+  --surf-blur: none;
+  --surf-border: 2px solid var(--text);
+  --surf-border-hover: var(--text);
+  --surf-shadow: 6px 6px 0 0 var(--text);
+  --surf-radius: 6px;
+
+  --ctl-bg: color-mix(in srgb, var(--bg) 85%, white 15%);
+  --ctl-blur: none;
+  --ctl-border: 2px solid var(--text);
+  --ctl-radius: 6px;
+  --ctl-shadow: 4px 4px 0 0 var(--text);
+  --ctl-shadow-hover: 6px 6px 0 0 var(--text);
+  --ctl-hover-bg: color-mix(in srgb, var(--accent) 26%, var(--ctl-bg));
+  --ctl-hover-border: var(--text);
+  --ctl-hover-transform: translate(-2px, -2px);
+  --ctl-active-transform: translate(4px, 4px);
+
+  --field-bg: color-mix(in srgb, var(--bg) 85%, white 15%);
+  --field-bg-focus: color-mix(in srgb, var(--bg) 85%, white 15%);
+  --field-border: 2px solid var(--text);
+  --field-shadow: none;
+  --field-focus-shadow: 3px 3px 0 0 var(--accent);
+
+  --pill-bg: color-mix(in srgb, var(--bg) 85%, white 15%);
+  --pill-border: 2px solid var(--text);
+  --pill-shadow: 2px 2px 0 0 var(--text);
+}
+html[data-style='brutal'] button:active:not(:disabled),
+html[data-style='brutal'] .file-btn:active {
+  box-shadow: 1px 1px 0 0 var(--text);
+}
+html[data-style='brutal'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #f7f3e8;
+  --glass: rgba(20, 22, 26, 0.05);
+  --glass-strong: rgba(20, 22, 26, 0.08);
+  --glass-hover: rgba(20, 22, 26, 0.12);
+  --stroke: rgba(20, 22, 26, 0.35);
+  --stroke-strong: rgba(20, 22, 26, 0.9);
+  --shadow: 6px 6px 0 0 #14161a;
+  --shadow-lift: 8px 8px 0 0 #14161a;
+  --text: #14161a;
+  --text-muted: #55585f;
+  --accent: #2f6fed;
+  --accent-2: #ff4d6d;
+  --gold: #ffcc33;
+  --danger: #ff3b3b;
+  --ok: #17c964;
+  --glow-1: rgba(0, 0, 0, 0);
+  --glow-2: rgba(0, 0, 0, 0);
+  --glow-3: rgba(0, 0, 0, 0);
+  --h1-grad: linear-gradient(120deg, #14161a, #14161a);
+}
+html[data-style='brutal'][data-mode='dark'] {
+  color-scheme: dark;
+  --bg: #17181c;
+  --glass: rgba(245, 243, 234, 0.05);
+  --glass-strong: rgba(245, 243, 234, 0.08);
+  --glass-hover: rgba(245, 243, 234, 0.12);
+  --stroke: rgba(245, 243, 234, 0.35);
+  --stroke-strong: rgba(245, 243, 234, 0.85);
+  --shadow: 6px 6px 0 0 #f5f3ea;
+  --shadow-lift: 8px 8px 0 0 #f5f3ea;
+  --text: #f5f3ea;
+  --text-muted: #9b9ea8;
+  --accent: #5b8cff;
+  --accent-2: #ff6b81;
+  --gold: #ffd93d;
+  --danger: #ff5c5c;
+  --ok: #3ddc84;
+  --glow-1: rgba(0, 0, 0, 0);
+  --glow-2: rgba(0, 0, 0, 0);
+  --glow-3: rgba(0, 0, 0, 0);
+  --h1-grad: linear-gradient(120deg, #f5f3ea, #f5f3ea);
+}
+
+/* Flat design: gris casi blanco y dos colores sólidos y planos (morado +
+   azul), sin sombra ni brillo — el punto del estilo es que todo se lea
+   como bloques de color puro, algo que un fondo oscuro con acentos de neón
+   rompería de inmediato. El hover se resuelve solo con un cambio de tinte,
+   nunca con movimiento. */
+html[data-style='flat'] {
+  --surf-bg: color-mix(in srgb, var(--bg) 90%, white 10%);
+  --surf-bg-hover: var(--surf-bg);
+  --surf-blur: none;
+  --surf-border: 1px solid var(--stroke);
+  --surf-border-hover: var(--stroke);
+  --surf-shadow: none;
+  --surf-radius: var(--radius);
+
+  --ctl-bg: color-mix(in srgb, var(--bg) 85%, white 15%);
+  --ctl-blur: none;
+  --ctl-border: 1px solid var(--stroke-strong);
+  --ctl-radius: var(--radius-sm);
+  --ctl-shadow: none;
+  --ctl-shadow-hover: none;
+  --ctl-hover-bg: color-mix(in srgb, var(--accent) 20%, var(--ctl-bg));
+  --ctl-hover-border: var(--accent);
+  --ctl-hover-transform: none;
+  --ctl-active-transform: none;
+
+  --field-bg: color-mix(in srgb, var(--bg) 85%, white 15%);
+  --field-bg-focus: color-mix(in srgb, var(--bg) 82%, white 18%);
+  --field-border: 1px solid var(--stroke);
+  --field-shadow: none;
+  --field-focus-shadow: 0 0 0 2px var(--accent);
+
+  --pill-bg: color-mix(in srgb, var(--bg) 85%, white 15%);
+  --pill-border: none;
+  --pill-shadow: none;
+}
+html[data-style='flat'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #f4f5fa;
+  --glass: rgba(28, 35, 51, 0.04);
+  --glass-strong: rgba(28, 35, 51, 0.06);
+  --glass-hover: rgba(28, 35, 51, 0.09);
+  --stroke: rgba(28, 35, 51, 0.1);
+  --stroke-strong: rgba(28, 35, 51, 0.18);
+  --shadow: none;
+  --shadow-lift: none;
+  --text: #1c2333;
+  --text-muted: #5b6478;
+  --accent: #6c5ce7;
+  --accent-2: #2f7dd1;
+  --gold: #f0a202;
+  --danger: #e63950;
+  --ok: #1f9d63;
+  --glow-1: rgba(0, 0, 0, 0);
+  --glow-2: rgba(0, 0, 0, 0);
+  --glow-3: rgba(0, 0, 0, 0);
+  --h1-grad: linear-gradient(120deg, #1c2333, #6c5ce7 55%, #2f7dd1);
+}
+html[data-style='flat'][data-mode='dark'] {
+  color-scheme: dark;
+  --bg: #14161f;
+  --glass: rgba(238, 240, 246, 0.04);
+  --glass-strong: rgba(238, 240, 246, 0.06);
+  --glass-hover: rgba(238, 240, 246, 0.09);
+  --stroke: rgba(238, 240, 246, 0.1);
+  --stroke-strong: rgba(238, 240, 246, 0.18);
+  --shadow: none;
+  --shadow-lift: none;
+  --text: #eef0f6;
+  --text-muted: #9aa1b4;
+  --accent: #7c6ff0;
   --accent-2: #4f8dff;
-  --gold: #ffcf7e;
-  --danger: #ff7d95;
-  --ok: #6fe0c4;
-  --glow-1: rgba(90, 209, 255, 0.14);
-  --glow-2: rgba(79, 141, 255, 0.16);
-  --glow-3: rgba(120, 170, 255, 0.1);
-  --h1-grad: linear-gradient(120deg, #ffffff, #a9e4ff 55%, #6f9dff);
+  --gold: #f0b429;
+  --danger: #ff6b7d;
+  --ok: #3ddc84;
+  --glow-1: rgba(0, 0, 0, 0);
+  --glow-2: rgba(0, 0, 0, 0);
+  --glow-3: rgba(0, 0, 0, 0);
+  --h1-grad: linear-gradient(120deg, #eef0f6, #7c6ff0 55%, #4f8dff);
 }
 
-html[data-theme='aurora'] {
-  --bg: #06120f;
-  --glass: rgba(190, 255, 230, 0.05);
-  --glass-strong: rgba(190, 255, 230, 0.085);
-  --glass-hover: rgba(190, 255, 230, 0.11);
-  --stroke: rgba(190, 255, 230, 0.12);
-  --stroke-strong: rgba(190, 255, 230, 0.22);
-  --text: #e6f5ef;
-  --text-muted: #86ab9e;
-  --accent: #4be3b0;
-  --accent-2: #38bdf8;
-  --gold: #ffe27a;
-  --danger: #ff8ba0;
-  --ok: #9af08f;
-  --glow-1: rgba(75, 227, 176, 0.16);
-  --glow-2: rgba(56, 189, 248, 0.14);
-  --glow-3: rgba(120, 240, 190, 0.1);
-  --h1-grad: linear-gradient(120deg, #ffffff, #8ff5cf 55%, #6fd2ff);
+/* Minimalismo: blanco y negro editoriales, con un único rojo coral como
+   color de acento — el minimalismo se rompe en cuanto hay más de un color
+   compitiendo por la atención, así que aquí no hay degradados de fondo ni
+   paleta de acentos, solo ese rojo puntual. Casi todo transparente, solo
+   líneas finas separando el contenido. Nada de sombra, nada de
+   movimiento — el único feedback es un cambio de color de borde. */
+html[data-style='minimal'] {
+  --surf-bg: transparent;
+  --surf-bg-hover: transparent;
+  --surf-blur: none;
+  --surf-border: 1px solid var(--stroke);
+  --surf-border-hover: var(--text);
+  --surf-shadow: none;
+  --surf-radius: 10px;
+
+  --ctl-bg: transparent;
+  --ctl-blur: none;
+  --ctl-border: 1px solid var(--stroke-strong);
+  --ctl-radius: 8px;
+  --ctl-shadow: none;
+  --ctl-shadow-hover: none;
+  --ctl-hover-bg: transparent;
+  --ctl-hover-border: var(--text);
+  --ctl-hover-transform: none;
+  --ctl-active-transform: none;
+
+  --field-bg: transparent;
+  --field-bg-focus: transparent;
+  --field-border: 1px solid var(--stroke);
+  --field-shadow: none;
+  --field-focus-shadow: none;
+
+  --pill-bg: transparent;
+  --pill-border: 1px solid var(--stroke);
+  --pill-shadow: none;
+}
+html[data-style='minimal'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --glass: rgba(17, 18, 20, 0.03);
+  --glass-strong: rgba(17, 18, 20, 0.05);
+  --glass-hover: rgba(17, 18, 20, 0.07);
+  --stroke: rgba(17, 18, 20, 0.14);
+  --stroke-strong: rgba(17, 18, 20, 0.3);
+  --shadow: none;
+  --shadow-lift: none;
+  --text: #111214;
+  --text-muted: #85888f;
+  --accent: #e2574a;
+  --accent-2: #111214;
+  --gold: #a9822d;
+  --danger: #b3261e;
+  --ok: #2f6f4f;
+  --glow-1: rgba(0, 0, 0, 0);
+  --glow-2: rgba(0, 0, 0, 0);
+  --glow-3: rgba(0, 0, 0, 0);
+  --h1-grad: linear-gradient(120deg, #111214, #111214 55%, #e2574a);
+}
+html[data-style='minimal'][data-mode='dark'] {
+  color-scheme: dark;
+  --bg: #0a0a0b;
+  --glass: rgba(245, 245, 245, 0.03);
+  --glass-strong: rgba(245, 245, 245, 0.05);
+  --glass-hover: rgba(245, 245, 245, 0.07);
+  --stroke: rgba(245, 245, 245, 0.14);
+  --stroke-strong: rgba(245, 245, 245, 0.3);
+  --shadow: none;
+  --shadow-lift: none;
+  --text: #f5f5f5;
+  --text-muted: #8a8d93;
+  --accent: #ff6b5b;
+  --accent-2: #f5f5f5;
+  --gold: #d9a545;
+  --danger: #ff5449;
+  --ok: #4cb782;
+  --glow-1: rgba(0, 0, 0, 0);
+  --glow-2: rgba(0, 0, 0, 0);
+  --glow-3: rgba(0, 0, 0, 0);
+  --h1-grad: linear-gradient(120deg, #f5f5f5, #f5f5f5 55%, #ff6b5b);
 }
 
-html[data-theme='amber'] {
-  --bg: #170d08;
-  --glass: rgba(255, 220, 190, 0.05);
-  --glass-strong: rgba(255, 220, 190, 0.09);
-  --glass-hover: rgba(255, 220, 190, 0.12);
-  --stroke: rgba(255, 220, 190, 0.13);
-  --stroke-strong: rgba(255, 220, 190, 0.24);
-  --text: #fbe9dc;
-  --text-muted: #c39a7d;
-  --accent: #ffb454;
-  --accent-2: #ff7a59;
-  --gold: #ffd37a;
-  --danger: #ff5c6c;
-  --ok: #c7dd7c;
-  --glow-1: rgba(255, 180, 84, 0.18);
-  --glow-2: rgba(255, 122, 89, 0.15);
-  --glow-3: rgba(255, 90, 90, 0.1);
-  --h1-grad: linear-gradient(120deg, #fff5e8, #ffc785 55%, #ff8f6b);
-}
-
-html[data-theme='light'] {
+/* Cristal (glass): el único estilo cuyo look "de fábrica" ya vive en :root
+   (--bg oscuro y compañía) porque es el que tenía la app desde siempre; el
+   oscuro no necesita bloque propio por eso. Este es solo su variante
+   clara — incluso [data-mode] sin fijar (primer arranque) cae en :root, que
+   es justo el oscuro, así que el comportamiento por defecto no cambia. */
+html[data-style='glass'][data-mode='light'] {
   color-scheme: light;
   --bg: #f3f5fb;
   --glass: rgba(255, 255, 255, 0.55);
@@ -127,60 +460,6 @@ html[data-theme='light'] {
   --glow-2: rgba(124, 92, 255, 0.09);
   --glow-3: rgba(47, 125, 209, 0.06);
   --h1-grad: linear-gradient(120deg, #1c2333, #2f7dd1 55%, #7c5cff);
-}
-
-/* Taberna: madera oscura y luz de vela, en vez de los cristales azulados
-   del resto de temas. Las vetas son un repeating-linear-gradient (sin
-   ninguna imagen de por medio). */
-html[data-theme='tavern'] {
-  --bg: #1b1108;
-  --glass: rgba(255, 205, 140, 0.055);
-  --glass-strong: rgba(255, 205, 140, 0.095);
-  --glass-hover: rgba(255, 205, 140, 0.13);
-  --stroke: rgba(255, 205, 140, 0.15);
-  --stroke-strong: rgba(255, 205, 140, 0.26);
-  --text: #f2ddbb;
-  --text-muted: #ad8862;
-  --accent: #e0a458;
-  --accent-2: #c1440e;
-  --gold: #ffd37a;
-  --danger: #ff6b52;
-  --ok: #b7d66b;
-  --glow-1: rgba(224, 164, 88, 0.22);
-  --glow-2: rgba(193, 68, 14, 0.16);
-  --glow-3: rgba(120, 80, 40, 0.18);
-  --h1-grad: linear-gradient(120deg, #ffe9c7, #e0a458 55%, #c1440e);
-  --texture: repeating-linear-gradient(112deg, rgba(0, 0, 0, 0.1) 0 3px, transparent 3px 9px);
-}
-
-/* Espacio: casi negro con nebulosas de neón y un campo de estrellas hecho
-   a base de radial-gradients diminutos, tampoco con imágenes. */
-html[data-theme='space'] {
-  --bg: #050611;
-  --glass: rgba(140, 170, 255, 0.05);
-  --glass-strong: rgba(140, 170, 255, 0.09);
-  --glass-hover: rgba(140, 170, 255, 0.13);
-  --stroke: rgba(140, 170, 255, 0.14);
-  --stroke-strong: rgba(140, 170, 255, 0.26);
-  --text: #e6ecff;
-  --text-muted: #7c86b8;
-  --accent: #7cf9ff;
-  --accent-2: #b06bff;
-  --gold: #ffe37a;
-  --danger: #ff5c8a;
-  --ok: #6bffb0;
-  --glow-1: rgba(124, 249, 255, 0.17);
-  --glow-2: rgba(176, 107, 255, 0.19);
-  --glow-3: rgba(60, 90, 200, 0.15);
-  --h1-grad: linear-gradient(120deg, #ffffff, #7cf9ff 55%, #b06bff);
-  --texture:
-    radial-gradient(1px 1px at 15% 25%, rgba(255, 255, 255, 0.9), transparent 60%),
-    radial-gradient(1px 1px at 65% 70%, rgba(255, 255, 255, 0.75), transparent 60%),
-    radial-gradient(1.5px 1.5px at 40% 88%, rgba(255, 255, 255, 0.85), transparent 60%),
-    radial-gradient(1px 1px at 85% 15%, rgba(255, 255, 255, 0.65), transparent 60%),
-    radial-gradient(1px 1px at 25% 55%, rgba(255, 255, 255, 0.55), transparent 60%),
-    radial-gradient(1.5px 1.5px at 92% 45%, rgba(255, 255, 255, 0.75), transparent 60%);
-  --texture-size: 200px 200px;
 }
 
 * { box-sizing: border-box; }
@@ -353,24 +632,23 @@ a:hover { text-decoration: underline; }
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--text);
-  background: var(--glass-strong);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--stroke-strong);
-  border-radius: var(--radius-sm);
+  background: var(--ctl-bg);
+  backdrop-filter: var(--ctl-blur);
+  -webkit-backdrop-filter: var(--ctl-blur);
+  border: var(--ctl-border);
+  border-radius: var(--ctl-radius);
   padding: 0.85rem 1.4rem;
-  box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: var(--ctl-shadow);
   transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease),
     background 0.18s var(--ease), border-color 0.18s var(--ease);
 }
 .back-link:hover {
   color: var(--text);
   text-decoration: none;
-  transform: translateY(-2px);
-  background: linear-gradient(180deg, rgba(124, 196, 255, 0.22), rgba(169, 150, 255, 0.14));
+  transform: var(--ctl-hover-transform);
+  background: var(--ctl-hover-bg);
   border-color: var(--accent);
-  box-shadow: var(--shadow-lift), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  box-shadow: var(--ctl-shadow-hover);
 }
 
 /* --- marcador de horas totales --- */
@@ -383,9 +661,9 @@ a:hover { text-decoration: underline; }
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--gold);
-  background: var(--glass);
-  backdrop-filter: blur(14px) saturate(150%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  background: var(--surf-bg);
+  backdrop-filter: var(--surf-blur);
+  -webkit-backdrop-filter: var(--surf-blur);
   border: 1px solid rgba(255, 211, 122, 0.35);
   border-radius: 999px;
   padding: 0.5rem 0.9rem;
@@ -396,16 +674,16 @@ a:hover { text-decoration: underline; }
 #status.ok { color: var(--ok); }
 #status.error { color: var(--danger); }
 
-/* --- paneles de cristal --- */
+/* --- paneles --- */
 section, .header-card {
   margin-top: 1.5rem;
-  background: var(--glass);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius);
+  background: var(--surf-bg);
+  backdrop-filter: var(--surf-blur);
+  -webkit-backdrop-filter: var(--surf-blur);
+  border: var(--surf-border);
+  border-radius: var(--surf-radius);
   padding: 1.5rem 1.6rem;
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: var(--surf-shadow);
 }
 
 form.inline { display: flex; gap: 0.6rem; flex-wrap: wrap; }
@@ -414,10 +692,11 @@ input, .filter-select {
   font: inherit;
   font-size: 0.95rem;
   color: var(--text);
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius-sm);
+  background: var(--field-bg);
+  border: var(--field-border);
+  border-radius: var(--ctl-radius);
   padding: 0.55rem 0.8rem;
+  box-shadow: var(--field-shadow);
   transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease),
     background 0.18s var(--ease);
 }
@@ -434,8 +713,8 @@ select.filter-select optgroup {
 input:focus, .filter-select:focus {
   outline: none;
   border-color: var(--accent);
-  background: rgba(0, 0, 0, 0.3);
-  box-shadow: 0 0 0 3px rgba(124, 196, 255, 0.18);
+  background: var(--field-bg-focus);
+  box-shadow: var(--field-focus-shadow);
 }
 input::placeholder { color: var(--text-muted); }
 
@@ -466,10 +745,11 @@ ul { list-style: none; padding: 0; margin: 0; }
 /* Control segmentado: se lee claramente como "elige una vista" */
 .tabs-list {
   display: flex;
-  border: 1px solid var(--stroke-strong);
+  border: var(--field-border);
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.22);
+  background: var(--field-bg);
+  box-shadow: var(--field-shadow);
 }
 .tab {
   font: inherit;
@@ -499,7 +779,7 @@ ul { list-style: none; padding: 0; margin: 0; }
   font-size: 0.74em;
   text-align: center;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(128, 128, 128, 0.22);
 }
 .tab.is-active .tab-count { background: rgba(0, 0, 0, 0.18); }
 
@@ -513,32 +793,33 @@ ul { list-style: none; padding: 0; margin: 0; }
 }
 .roulette-icon { font-size: 1em; }
 
-/* --- botones de cristal, con elevación al pasar el ratón --- */
+/* --- botones: el look real lo deciden las variables --ctl-*, que cambian
+   por completo según el estilo visual activo (ver "--- estilos visuales
+   ---" arriba). Esta regla es la misma para los 5 estilos. --- */
 button {
   font: inherit;
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text);
-  background: var(--glass-strong);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--stroke-strong);
-  border-radius: var(--radius-sm);
+  background: var(--ctl-bg);
+  backdrop-filter: var(--ctl-blur);
+  -webkit-backdrop-filter: var(--ctl-blur);
+  border: var(--ctl-border);
+  border-radius: var(--ctl-radius);
   padding: 0.62rem 1rem;
   cursor: pointer;
-  box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: var(--ctl-shadow);
   transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease),
     background 0.18s var(--ease), border-color 0.18s var(--ease);
 }
 button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  background: linear-gradient(180deg, rgba(124, 196, 255, 0.22), rgba(169, 150, 255, 0.14));
-  border-color: rgba(124, 196, 255, 0.5);
-  box-shadow: var(--shadow-lift), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transform: var(--ctl-hover-transform);
+  background: var(--ctl-hover-bg);
+  border-color: var(--ctl-hover-border);
+  box-shadow: var(--ctl-shadow-hover);
 }
-button:active:not(:disabled) { transform: translateY(0); }
+button:active:not(:disabled) { transform: var(--ctl-active-transform); }
 button:disabled { opacity: 0.5; cursor: default; }
 
 /* --- selector de archivo (carátula) --- */
@@ -549,23 +830,22 @@ button:disabled { opacity: 0.5; cursor: default; }
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text);
-  background: var(--glass-strong);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--stroke-strong);
-  border-radius: var(--radius-sm);
+  background: var(--ctl-bg);
+  backdrop-filter: var(--ctl-blur);
+  -webkit-backdrop-filter: var(--ctl-blur);
+  border: var(--ctl-border);
+  border-radius: var(--ctl-radius);
   padding: 0.62rem 1rem;
   cursor: pointer;
-  box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: var(--ctl-shadow);
   transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease),
     background 0.18s var(--ease), border-color 0.18s var(--ease);
 }
 .file-btn:hover {
-  transform: translateY(-2px);
-  background: linear-gradient(180deg, rgba(124, 196, 255, 0.22), rgba(169, 150, 255, 0.14));
-  border-color: rgba(124, 196, 255, 0.5);
-  box-shadow: var(--shadow-lift), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transform: var(--ctl-hover-transform);
+  background: var(--ctl-hover-bg);
+  border-color: var(--ctl-hover-border);
+  box-shadow: var(--ctl-shadow-hover);
 }
 .file-name { font-size: 0.85rem; color: var(--text-muted); }
 
@@ -589,9 +869,9 @@ button:disabled { opacity: 0.5; cursor: default; }
   gap: 0.5rem 0.9rem;
   margin-top: 0.4rem;
   padding: 0.7rem 0.9rem;
-  background: var(--glass);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius-sm);
+  background: var(--surf-bg);
+  border: var(--surf-border);
+  border-radius: var(--ctl-radius);
 }
 .cover-frame-title {
   font-size: 0.78rem;
@@ -866,8 +1146,9 @@ button:disabled { opacity: 0.5; cursor: default; }
   letter-spacing: 0.01em;
   padding: 0.2rem 0.45rem;
   border-radius: 999px;
-  border: 1px solid var(--stroke);
-  background: rgba(255, 255, 255, 0.06);
+  border: var(--pill-border);
+  background: var(--pill-bg);
+  box-shadow: var(--pill-shadow);
   color: var(--text);
   white-space: nowrap;
 }
@@ -932,8 +1213,9 @@ button:disabled { opacity: 0.5; cursor: default; }
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  border: 1px solid var(--stroke);
-  background: rgba(255, 255, 255, 0.04);
+  border: var(--pill-border);
+  background: var(--pill-bg);
+  box-shadow: var(--pill-shadow);
   border-radius: 999px;
   padding: 0.28rem 0.65rem;
   white-space: nowrap;
@@ -992,18 +1274,19 @@ li.session, li.achievement {
   align-items: center;
   padding: 0.8rem 1rem;
   margin-bottom: 0.55rem;
-  background: var(--glass);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius-sm);
+  background: var(--surf-bg);
+  border: var(--surf-border);
+  border-radius: var(--ctl-radius);
+  box-shadow: var(--pill-shadow);
   flex-wrap: wrap;
   transition: transform 0.18s var(--ease), background 0.18s var(--ease),
     border-color 0.18s var(--ease);
 }
 li.session:last-child, li.achievement:last-child { margin-bottom: 0; }
 li.session:hover, li.achievement:hover {
-  transform: translateY(-2px);
-  background: var(--glass-hover);
-  border-color: var(--stroke-strong);
+  transform: var(--ctl-hover-transform);
+  background: var(--surf-bg-hover);
+  border-color: var(--surf-border-hover);
 }
 
 li.session .minutes { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; font-size: 0.98rem; }
@@ -1112,9 +1395,9 @@ li.achievement .unlocked-at { margin-left: auto; font-size: 0.72rem; }
   padding: 2rem 2.2rem 2.2rem;
   text-align: center;
   background: var(--bg);
-  border: 1px solid var(--stroke-strong);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  border: var(--surf-border, 1px solid var(--stroke-strong));
+  border-radius: var(--surf-radius);
+  box-shadow: var(--surf-shadow);
 }
 .modal-box h2 {
   color: var(--text);
@@ -1171,19 +1454,19 @@ li.achievement .unlocked-at { margin-left: auto; font-size: 0.72rem; }
   align-items: flex-start;
   gap: 0.55rem;
   padding: 0.75rem;
-  background: var(--glass-strong);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius-sm);
+  background: var(--ctl-bg);
+  border: var(--ctl-border);
+  border-radius: var(--ctl-radius);
   cursor: pointer;
   text-align: left;
   transition: transform 0.18s var(--ease), border-color 0.18s var(--ease),
     box-shadow 0.18s var(--ease);
 }
 .theme-swatch:hover:not(:disabled) {
-  transform: translateY(-2px);
-  border-color: var(--stroke-strong);
-  box-shadow: var(--shadow);
-  background: var(--glass-strong);
+  transform: var(--ctl-hover-transform);
+  border-color: var(--ctl-hover-border);
+  box-shadow: var(--ctl-shadow-hover);
+  background: var(--ctl-hover-bg);
 }
 .theme-swatch.is-active {
   border-color: var(--accent);
@@ -1194,6 +1477,39 @@ li.achievement .unlocked-at { margin-left: auto; font-size: 0.72rem; }
   height: 2.6rem;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Muestras del selector de ESTILO: a diferencia de las de paleta (que
+   pintan un degradado de color), estas dibujan en miniatura la sombra
+   real de cada estilo sobre un gris neutro fijo, para que se distinga el
+   lenguaje visual sin depender del tema de color activo. */
+.style-swatch-preview {
+  width: 100%;
+  height: 2.6rem;
+  border-radius: 8px;
+  background: #86868f;
+}
+.style-swatch-preview.style-preview-glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.style-swatch-preview.style-preview-neu {
+  border: none;
+  box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.45), -3px -3px 6px rgba(255, 255, 255, 0.35);
+}
+.style-swatch-preview.style-preview-brutal {
+  background: #c9c9d1;
+  border: 2px solid #17181c;
+  border-radius: 4px;
+  box-shadow: 3px 3px 0 0 #17181c;
+}
+.style-swatch-preview.style-preview-flat {
+  background: #6f6f9e;
+  border: none;
+}
+.style-swatch-preview.style-preview-minimal {
+  background: transparent;
+  border: 1px solid rgba(120, 120, 130, 0.7);
 }
 .theme-swatch-name { font-size: 0.85rem; font-weight: 600; color: var(--text); }
 .theme-swatch-check {
@@ -1211,6 +1527,36 @@ li.achievement .unlocked-at { margin-left: auto; font-size: 0.72rem; }
   background: var(--accent);
 }
 .theme-swatch.is-active .theme-swatch-check { display: flex; }
+
+/* --- selector de modo (claro/oscuro): reaprovecha el control segmentado
+   de las pestañas de la biblioteca (.tabs-list / .tab), no necesita CSS
+   propio más allá de encogerlo a su contenido. --- */
+.mode-toggle { display: inline-flex; margin-bottom: 1.6rem; }
+
+/* --- personalización: fuente, fondo, acento y título --- */
+.custom-row {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.9rem;
+}
+.custom-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.custom-row select { min-width: 11rem; }
+.custom-row input[type='color'] {
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0.15rem;
+  cursor: pointer;
+}
+#custom-reset { margin-bottom: 1.6rem; }
 
 .theme-bg-row {
   display: flex;
@@ -1497,7 +1843,7 @@ body.page-onboarding {
   margin-top: 0.8rem;
   height: 8px;
   border-radius: 999px;
-  background: var(--glass-strong);
+  background: var(--field-bg);
   border: 1px solid var(--stroke);
   overflow: hidden;
 }
@@ -1618,8 +1964,8 @@ body.page-onboarding {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text);
-  background: var(--glass-strong);
-  border: 1px solid var(--stroke);
+  background: var(--ctl-bg);
+  border: var(--ctl-border);
   border-radius: 999px;
   padding: 0.6rem 1.1rem;
   opacity: 0;
@@ -1634,9 +1980,9 @@ body.page-onboarding {
   display: inline-block;
   font-size: 0.92rem;
   color: var(--text-muted);
-  background: var(--glass);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius-sm);
+  background: var(--surf-bg);
+  border: var(--surf-border);
+  border-radius: var(--ctl-radius);
   padding: 0.5rem 0.85rem;
   margin-bottom: 1.3rem;
 }
